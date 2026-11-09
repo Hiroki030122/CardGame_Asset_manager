@@ -1,0 +1,11 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      // 見るのは誰でもOK
+      allow read: if true;
+      // 書き換えは自分だけ（"" の中を、確認用ページに表示された ID に書き換える）
+      allow write: if request.auth != null && request.auth.uid == "ここにIDを貼る";
+    }
+  }
+}
