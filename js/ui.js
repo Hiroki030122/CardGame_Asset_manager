@@ -51,6 +51,63 @@ export function confirmDialog({ title, message = [], okText = "OK", cancelText =
   });
 }
 
+// 3 択以上のダイアログ。選んだ choices[].value を返す。キャンセルなら null。
+export function choiceDialog({ title, message = [], choices, cancelText = "キャンセル" }) {
+  return new Promise((resolve) => {
+    const lines = (Array.isArray(message) ? message : [message]).map((m) => (m instanceof Node ? m : h("p", null, m)));
+    const buttons = choices.map((c) => h("button", { value: c.value, class: c.danger ? "danger" : c.sub ? "sub" : null }, c.label));
+    const dialog = h("dialog", { class: "dialog" },
+      h("form", { method: "dialog" },
+        h("h2", null, title),
+        lines,
+        h("div", { class: "dialog-buttons" }, h("button", { value: "", class: "sub" }, cancelText), buttons)));
+    dialog.addEventListener("close", () => {
+      dialog.remove();
+      resolve(dialog.returnValue || null);
+    });
+    document.body.append(dialog);
+    dialog.showModal();
+  });
+}
+
+// 文字を 1 つ入れるダイアログ。入れた文字を返す（allowEmpty なら空文字もあり）。キャンセルなら null。
+// validate(値) が文字を返したら、そのエラーを出して閉じない。
+export function promptDialog({ title, label, value = "", okText = "OK", validate = null, allowEmpty = false }) {
+  return new Promise((resolve) => {
+    let result = null;
+    const input = h("input", { type: "text", value, autocomplete: "off", "aria-label": label });
+    const error = h("p", { class: "error-text", hidden: true });
+    const form = h("form", null,
+      h("h2", null, title),
+      h("label", { class: "field" }, h("span", { class: "label" }, label), input),
+      error,
+      h("div", { class: "dialog-buttons" },
+        h("button", { type: "button", class: "sub", onclick: () => dialog.close() }, "キャンセル"),
+        h("button", { type: "submit" }, okText)));
+    const dialog = h("dialog", { class: "dialog" }, form);
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const text = input.value.trim();
+      const message = text ? (validate?.(text) ?? "") : allowEmpty ? "" : "入力してください";
+      if (message) {
+        error.textContent = message;
+        error.hidden = false;
+        return;
+      }
+      result = text;
+      dialog.close();
+    });
+    dialog.addEventListener("close", () => {
+      dialog.remove();
+      resolve(result);
+    });
+    document.body.append(dialog);
+    dialog.showModal();
+    input.focus();
+    input.select();
+  });
+}
+
 export function downloadFile(filename, text, type = "application/json") {
   const url = URL.createObjectURL(new Blob([text], { type }));
   const a = h("a", { href: url, download: filename, hidden: true });
@@ -162,7 +219,36 @@ export function savePref(key, value) {
   }
 }
 
+// コスト（ツインパクトや超次元の面は `5//3//2` の形）
 export function costText(item) {
-  const cost = item.cost ?? "—";
-  return item.cost2 != null ? `${cost}//${item.cost2}` : String(cost);
+  const costs = [item.cost, item.cost2, item.cost3].filter((c) => c != null);
+  return costs.length ? costs.join("//") : "—";
 }
+
+// 区分（超次元は面ごとの区分を「 / 」でつなぐ）
+export function kindText(item) {
+  return [item.kind, item.kind2, item.kind3].filter(Boolean).join(" / ");
+}
+
+// 横の帯グラフ。segments: [{ label, value, class }]。名前と数は文字でも出す（色だけに頼らない）。
+export function stackedBar(segments, { label = "" } = {}) {
+  const shown = segments.filter((s) => s.value > 0);
+  const bar = h("div", { class: "stacked", role: "img", "aria-label": label },
+    shown.map((s) => h("span", { class: `seg ${s.class ?? ""}`, style: `flex-grow:${Number(s.value)}`, title: `${s.label} ${s.value}` })));
+  return h("div", null,
+    shown.length ? bar : h("p", { class: "muted" }, "なし"),
+    h("ul", { class: "legend" }, shown.map((s) => h("li", null, h("span", { class: `swatch ${s.class ?? ""}` }), `${s.label} ${s.value}`))));
+}
+
+// 棒グラフ。bins: [{ label, value }]。各棒の上に数を出す。
+export function barChart(bins, { label = "" } = {}) {
+  const max = Math.max(1, ...bins.map((b) => b.value));
+  return h("div", { class: "bars", role: "img", "aria-label": label },
+    bins.map((b) => h("div", { class: "bar-col" },
+      h("span", { class: "bar-num" }, b.value ? String(b.value) : ""),
+      h("div", { class: "bar-track" }, h("div", { class: "bar", style: `height:${Math.round((b.value / max) * 100)}%` })),
+      h("span", { class: "bar-label" }, b.label))));
+}
+
+// 文明の色のクラス名（civChips と同じ）
+export const CIV_CLASSES = CIV_CLASS;

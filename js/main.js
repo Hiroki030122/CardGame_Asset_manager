@@ -2,21 +2,30 @@
 import { watchAuth, isAdmin, login, logout } from "./firebase.js";
 import * as store from "./store.js";
 import { createInitialGame } from "./actions.js";
-import { importJsonReplace } from "./excel.js";
+import { importJson } from "./excel.js";
 import { h, section, toast, copyText } from "./ui.js";
 import * as searchView from "./views/search.js";
+import * as cardListView from "./views/cardList.js";
 import * as detailView from "./views/detail.js";
+import * as cubeView from "./views/cube.js";
+import * as hyperView from "./views/hyper.js";
 import * as settingsView from "./views/settings.js";
 
-const TABS = [
-  { key: "search", label: "検索" },
-  { key: "cube/A", cube: "A" },
-  { key: "cube/B", cube: "B" },
-  { key: "hyper", label: "超次元" },
-  { key: "stats", label: "集計" },
-  { key: "settings", label: "設定" },
-];
-const ROUTES = ["search", "cube", "card", "hyper", "stats", "settings"];
+// タブ：検索 → カード一覧 → キューブ（データにある数だけ。order 順）→ 超次元 → 集計 → 設定
+function tabsFor(data) {
+  const cubes = data ? Object.entries(data.cubes).map(([id, c]) => ({ key: `cube/${id}`, label: c.name })) : [];
+  return [
+    { key: "search", label: "検索" },
+    { key: "list", label: "カード一覧" },
+    ...cubes,
+    { key: "hyper", label: "超次元" },
+    { key: "stats", label: "集計" },
+    { key: "settings", label: "設定" },
+  ];
+}
+const ROUTES = ["search", "list", "cube", "card", "hyper", "gr", "stats", "settings"];
+// カード一覧の対象（#/list/hypers など）
+const LIST_LEDGER = { hypers: "hypers", gr: "gr" };
 
 const $ = (id) => document.getElementById(id);
 
@@ -32,26 +41,30 @@ function parseRoute() {
     parts = [];
   }
   const [name, param = null] = parts;
+  // 前の URL（#/search/hypers・#/search/gr）は、カード一覧として開く
+  if (name === "search" && param in LIST_LEDGER) return { name: "list", param };
   return ROUTES.includes(name) ? { name, param } : { name: "search", param: null };
 }
 
 function activeTabKey(r) {
   if (r.name === "cube") return `cube/${r.param}`;
-  if (r.name === "card") return "search";
+  if (r.name === "card" || r.name === "gr" || (r.name === "hyper" && r.param)) return "list";
   return r.name;
 }
 
 function cubeName(id, data) {
-  return data?.cubes[id]?.name ?? store.DEFAULT_CUBES[id]?.name ?? `キューブ${id}`;
+  return data?.cubes[id]?.name ?? "キューブ";
 }
 
 function pageTitle(r, data) {
   switch (r.name) {
     case "cube": return cubeName(r.param, data);
     case "card": return "カードの詳細";
-    case "hyper": return "超次元";
+    case "gr": return "GR の詳細";
+    case "hyper": return r.param ? "超次元の詳細" : "超次元";
     case "stats": return "集計";
     case "settings": return "設定";
+    case "list": return "カード一覧";
     default: return "検索";
   }
 }
@@ -61,11 +74,12 @@ function pageTitle(r, data) {
 function renderTabs() {
   const data = store.getState().data;
   const active = activeTabKey(route);
-  $("tabs").replaceChildren(...TABS.map((t) => h("a", {
+  $("tabs").replaceChildren(...tabsFor(data).map((t) => h("a", {
     href: `#/${t.key}`,
     class: t.key === active ? "tab active" : "tab",
     "aria-current": t.key === active ? "page" : null,
-  }, t.cube ? cubeName(t.cube, data) : t.label)));
+  }, t.label)));
+  $("tabs").querySelector(".tab.active")?.scrollIntoView({ block: "nearest", inline: "nearest" });
 }
 
 function renderAuth() {
@@ -126,6 +140,9 @@ function renderView() {
 
   let update = null;
   if (phase === "content" && route.name === "search") update = searchView.mount(body, ctx).update;
+  else if (phase === "content" && route.name === "list") update = cardListView.mount(body, ctx, { ledger: LIST_LEDGER[route.param] ?? "cards" }).update;
+  else if (phase === "content" && route.name === "hyper" && !route.param) update = hyperView.mount(body, ctx).update;
+  else if (phase === "content" && route.name === "cube" && st.data.cubes[route.param]) update = cubeView.mount(body, ctx).update;
   else body.append(...[staticBody(phase, ctx)].flat().filter(Boolean));
   mounted = { key, titleEl, update };
 }
@@ -142,10 +159,11 @@ function staticBody(phase, ctx) {
 
 function content(ctx) {
   const { name, param } = ctx.route;
-  if (name === "card") return detailView.render(ctx);
+  if (name === "card") return detailView.render(ctx, "cards");
+  if (name === "gr") return detailView.render(ctx, "gr");
+  if (name === "hyper") return detailView.render(ctx, "hypers");
   if (name === "cube" && !ctx.state.data.cubes[param]) return h("p", { class: "muted" }, "このキューブはありません。");
-  const stage = { cube: 3, hyper: 4, stats: 5 }[name];
-  return h("p", { class: "muted" }, `この画面は段階 ${stage} で作ります。`);
+  return h("p", { class: "muted" }, "この画面は段階 5 で作ります。");
 }
 
 function emptyState({ admin }) {
@@ -154,7 +172,7 @@ function emptyState({ admin }) {
     h("p", null, "初期設定（文明・属性・役割・区分の選択肢と、空のキューブA／B）を作るか、JSON を取り込んでください。"),
     h("div", { class: "buttons" },
       h("button", { onclick: onCreateInitial }, "初期設定を作成"),
-      h("button", { class: "sub", onclick: importJsonReplace }, "JSON を取り込む")));
+      h("button", { class: "sub", onclick: importJson }, "JSON を取り込む")));
 }
 
 async function onCreateInitial(e) {

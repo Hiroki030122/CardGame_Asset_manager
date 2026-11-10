@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>calc.js のテスト</title>
+<title>calc.js・merge.js のテスト</title>
 <style>
   body { font-family: system-ui, -apple-system, "Hiragino Sans", "Yu Gothic UI", sans-serif; margin: 0; padding: 16px; line-height: 1.6; }
   .ok { color: #16a34a; }
@@ -11,12 +11,13 @@
 </style>
 </head>
 <body>
-<h1>calc.js のテスト</h1>
+<h1>calc.js・merge.js のテスト</h1>
 <p id="summary">実行中…</p>
 <ul id="list"></ul>
 <script type="module">
-  import { run } from "./calc.test.mjs";
-  const results = run();
+  import { run as runCalc } from "./calc.test.mjs";
+  import { run as runMerge } from "./merge.test.mjs";
+  const results = [...runCalc(), ...runMerge()];
   const list = document.getElementById("list");
   for (const r of results) {
     const li = document.createElement("li");

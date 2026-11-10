@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 2,
+  "settings": {
+    "civs": [
+      "火",
+      "自然",
+      "水",
+      "光",
+      "闇"
+    ],
+    "attributes": [
+      "SA",
+      "ST",
+      "ブロッカー",
+      "ハンデス",
+      "シノビ",
+      "進化",
+      "MF",
+      "追加テスト属性"
+    ],
+    "roles": [],
+    "kinds": [],
+    "hyperKinds": []
+  },
+  "counters": {
+    "cards": 2,
+    "hypers": 1,
+    "gr": 0
+  },
+  "cards": [
+    {
+      "no": 1,
+      "name": "身代わり人形トレント",
+      "proxy": false,
+      "cost": 6,
+      "cost2": null,
+      "kind": "クリーチャー",
+      "civs": [
+        "自然"
+      ],
+      "attrs": [
+        "シノビ"
+      ],
+      "roles": [],
+      "memo": "",
+      "owned": 2
+    },
+    {
+      "no": 2,
+      "name": "追加テストカード",
+      "proxy": false,
+      "cost": 3,
+      "cost2": null,
+      "kind": "呪文",
+      "civs": [
+        "火"
+      ],
+      "attrs": [
+        "追加テスト属性"
+      ],
+      "roles": [],
+      "memo": "テスト用",
+      "owned": 1
+    }
+  ],
+  "hypers": [
+    {
+      "no": 1,
+      "name": "追加テスト超次元",
+      "proxy": false,
+      "cost": 5,
+      "kind": "サイキック・クリーチャー",
+      "civs": [
+        "水"
+      ],
+      "back": "",
+      "memo": "",
+      "owned": 1
+    }
+  ],
+  "gr": [],
+  "cubes": {
+    "A": {
+      "name": "キューブA",
+      "usesGR": true,
+      "cards": [
+        {
+          "no": 1,
+          "memo": ""
+        },
+        {
+          "no": 2,
+          "memo": "追加テスト"
+        }
+      ],
+      "hyperLinks": [
+        {
+          "id": "test-link-1",
+          "parent": 2,
+          "hyper": 1,
+          "memo": ""
+        }
+      ],
+      "hypers": [
+        {
+          "no": 1,
+          "memo": "",
+          "count": 1
+        }
+      ],
+      "gr": []
+    },
+    "B": {
+      "name": "キューブB",
+      "usesGR": false,
+      "cards": [],
+      "hyperLinks": [],
+      "hypers": [],
+      "gr": []
+    }
+  }
+}

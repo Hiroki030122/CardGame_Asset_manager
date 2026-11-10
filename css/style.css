@@ -309,16 +309,132 @@ table.grid .col-memo { white-space: normal; min-width: 10em; }
 table.grid td a { color: var(--accent); }
 .th-sort { min-height: 0; padding: 0; border: 0; background: none; color: inherit; font-weight: 600; white-space: nowrap; }
 
-.fab {
+.fab-group {
   position: fixed;
   right: 16px;
   bottom: 24px;
   z-index: 20;
+  display: flex;
+  gap: 8px;
+}
+.fab-group button {
   padding: 12px 20px;
   border-radius: 999px;
   font-weight: 600;
   box-shadow: 0 4px 12px rgba(0, 0, 0, .25);
 }
+.fab-group button.sub { background: var(--surface); }
+
+/* ---- 足りないカードは赤字 ---- */
+.card-tile.short { border-color: var(--danger); }
+.card-tile.short .tile-name { color: var(--danger); }
+table.grid tr.short .col-name a { color: var(--danger); }
+
+/* ---- キューブの出し入れ ---- */
+.row-ctls { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.cube-ctls { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.cube-ctl { display: inline-flex; align-items: center; gap: 4px; }
+.cube-ctl button { min-width: 40px; padding: 4px 8px; }
+.cube-label { font-size: 13px; color: var(--muted); }
+.cube-label.in { color: var(--accent); font-weight: 600; }
+.cube-rows { list-style: none; margin: 0; padding: 0; }
+.cube-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+.card-tile .row-ctls { margin-top: 2px; }
+
+/* ---- 一覧をすっきり見せる ---- */
+.card-tile { gap: 4px; padding: 8px 10px; }
+.tile-bottom { gap: 2px 12px; font-size: 13px; }
+.tile-row { gap: 2px 8px; }
+.ellipsis { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+.owned-inline { display: inline-flex; align-items: center; gap: 4px; }
+.owned-inline button { min-width: 32px; min-height: 32px; padding: 0 6px; }
+.owned-num { min-width: 1.5em; text-align: center; }
+table.grid td .row-ctls { flex-wrap: nowrap; gap: 4px 8px; }
+table.grid td .cube-ctls { flex-wrap: nowrap; }
+.row-ctls button, .stepper button { min-height: 36px; }
+
+/* ---- 検索：台帳ごとの結果 ---- */
+.search-hint { padding: 24px 4px; text-align: center; }
+.search-group { margin-bottom: 16px; }
+.list-heading { font-size: 16px; margin: 12px 0 8px; padding-bottom: 4px; border-bottom: 2px solid var(--border); }
+
+/* ---- メインデッキ／超次元／GR の切り替え（カード一覧） ---- */
+.ledger-switch { display: flex; width: 100%; margin-bottom: 8px; }
+.segmented a {
+  flex: 1 1 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 16px;
+  color: var(--text);
+  text-decoration: none;
+  background: var(--surface);
+}
+.segmented a[aria-current="page"] { background: var(--accent); color: var(--accent-text); font-weight: 600; }
+
+/* ---- 超次元の面（コスト＋区分）と関連のチップ ---- */
+.face-row { display: grid; grid-template-columns: 3.5em minmax(0, 1fr) minmax(0, 2fr); gap: 8px; align-items: end; }
+.face-label { align-self: center; font-weight: 600; color: var(--muted); font-size: 14px; }
+.link-chip { display: inline-flex; align-items: center; gap: 4px; }
+.chip-x {
+  min-height: 24px;
+  min-width: 24px;
+  padding: 0 6px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1;
+}
+
+/* ---- キューブ画面：ミニ集計・グラフ ---- */
+.cube-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
+dl.stats { display: flex; flex-wrap: wrap; gap: 4px 20px; margin: 0 0 8px; }
+dl.stats > * { display: inline; margin: 0; }
+dl.stats dt { color: var(--muted); font-size: 13px; margin-right: 6px; }
+dl.stats dd { font-weight: 700; font-size: 18px; margin-right: 0; }
+.sub-title { font-size: 13px; color: var(--muted); margin: 12px 0 4px; }
+.stacked { display: flex; height: 18px; border-radius: 9px; overflow: hidden; background: var(--surface-2); }
+.stacked .seg { min-width: 4px; }
+.legend { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; }
+.swatch { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; background: var(--muted); }
+.bars { display: flex; align-items: flex-end; gap: 4px; height: 120px; }
+.bar-col { flex: 1 1 0; min-width: 0; height: 100%; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.bar-num { font-size: 12px; min-height: 16px; }
+.bar-track { flex: 1 1 auto; width: 100%; display: flex; align-items: flex-end; }
+.bar { width: 100%; background: var(--accent); border-radius: 3px 3px 0 0; min-height: 0; }
+.bar-label { font-size: 12px; color: var(--muted); }
+
+/* ---- キューブに入れるカードの選択 ---- */
+.picker-list { display: flex; flex-direction: column; gap: 8px; }
+.picker-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.picker-main { min-width: 0; flex: 1 1 auto; overflow-wrap: anywhere; }
+.picker-row button { flex: 0 0 auto; }
+
+/* ---- 設定：キューブ ---- */
+.cube-settings { list-style: none; margin: 0 0 8px; padding: 0; }
+.cube-setting { padding: 8px 0; border-bottom: 1px solid var(--border); }
+.cube-setting-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+.cube-setting-head .stepper { margin-left: auto; flex-wrap: wrap; }
+.cube-setting-opts { display: flex; flex-wrap: wrap; gap: 0 16px; }
+
+/* ---- 設定：選択肢の編集 ---- */
+.choice-group { margin-bottom: 16px; }
+.choice-group h3 { font-size: 14px; color: var(--muted); margin: 0 0 6px; }
+.choice-list { list-style: none; margin: 0 0 8px; padding: 0; }
+.choice-list li {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+}
+.choice-name { flex: 1 1 8em; min-width: 0; overflow-wrap: anywhere; }
+.choice-list .stepper { flex-wrap: wrap; margin-left: 0; }
+.choice-list .stepper button { min-width: 44px; }
 .view-body { padding-bottom: 72px; }
 
 /* ---- 詳細 ---- */
@@ -408,16 +524,17 @@ dialog ul { margin: 0 0 8px; padding-left: 1.2em; max-height: 40vh; overflow: au
     padding: 0 0 env(safe-area-inset-bottom);
     background: var(--surface);
     border-top: 1px solid var(--border);
-    overflow: hidden;
+    overflow-x: auto;
+    scrollbar-width: none;
   }
   .tab {
-    flex: 1 1 0;
-    min-width: 0;
+    flex: 1 0 auto;
+    min-width: 56px;
     height: var(--tabbar-h);
     line-height: calc(var(--tabbar-h) - 3px);
     text-align: center;
-    padding: 0 2px;
-    font-size: 11px;
+    padding: 0 10px;
+    font-size: 12px;
     overflow: hidden;
     text-overflow: ellipsis;
     border-bottom: 0;
@@ -426,6 +543,6 @@ dialog ul { margin: 0 0 8px; padding-left: 1.2em; max-height: 40vh; overflow: au
   .tab.active { border-top-color: var(--accent); }
   main { padding-bottom: calc(var(--tabbar-h) + 32px + env(safe-area-inset-bottom)); }
   #toasts { bottom: calc(var(--tabbar-h) + 80px + env(safe-area-inset-bottom)); }
-  .fab { bottom: calc(var(--tabbar-h) + 16px + env(safe-area-inset-bottom)); }
+  .fab-group { bottom: calc(var(--tabbar-h) + 16px + env(safe-area-inset-bottom)); }
   dialog.modal { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0; border-radius: 0; }
 }

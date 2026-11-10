@@ -1,5 +1,59 @@
 // calc.js のテスト。`node tests/calc.test.mjs`、または tests/calc.test.html をブラウザで開いて実行する。
-import { cubeIndex, cardUse, usagePlaces, firstFreeNo, canDelete } from "../js/calc.js";
+import {
+  cubeIndex, cardUse, usagePlaces, firstFreeNo, canDelete, choiceChanges, choiceUsage,
+  cubeEntries, cubeAddCheck, civTotals, costHistogram, cubeSummary, cubeProblems, nextCubeId,
+  hyperUse, grUse, linkAddCheck, hyperRemoveCheck, cubeLinks, hasSearchCondition,
+} from "../js/calc.js";
+
+// キューブ 3 つ（X：1 枚だけ、Y：複数枚OK、Z：空）。No.1 は所持 2 で X に 1 枚・Y に 2 枚入っている
+const mini = () => ({
+  settings: { civs: ["火", "自然", "水", "光", "闇"] },
+  hypers: [],
+  gr: [],
+  cards: [
+    { no: 1, name: "A", proxy: false, owned: 2, civs: ["火"], cost: 3, cost2: null },
+    { no: 2, name: "A", proxy: true, owned: 1, civs: ["火", "水"], cost: 5, cost2: 2 },
+    { no: 3, name: "B", proxy: false, owned: 0, civs: [], cost: 12, cost2: null },
+    { no: 4, name: "C", proxy: false, owned: 1, civs: ["闇"], cost: null, cost2: null },
+  ],
+  cubes: {
+    X: { name: "X", usesGR: false, multi: false, cards: [{ no: 1, memo: "", count: 1 }], hypers: [], gr: [], hyperLinks: [] },
+    Y: { name: "Y", usesGR: false, multi: true, cards: [{ no: 1, memo: "", count: 2 }, { no: 3, memo: "", count: 1 }], hypers: [], gr: [], hyperLinks: [] },
+    Z: { name: "Z", usesGR: false, multi: false, cards: [], hypers: [], gr: [], hyperLinks: [] },
+  },
+});
+
+const choiceData = {
+  cards: [
+    { no: 1, attrs: ["SA", "ST"], roles: [], kind: "呪文" },
+    { no: 2, attrs: ["ST"], roles: ["除去"], kind: "クリーチャー" },
+  ],
+  hypers: [
+    { no: 1, kind: "サイキック・クリーチャー", kind2: "", kind3: "", attrs: [], roles: [] },
+    { no: 2, kind: "ドラグハート・ウエポン", kind2: "ドラグハート・クリーチャー", kind3: "ドラグハート・ウエポン", attrs: ["MF"], roles: ["受け札"] },
+  ],
+  gr: [{ no: 1, kind: "クリーチャー", attrs: ["SA"], roles: [] }],
+};
+
+// 超次元 No.1（所持 4）・No.2（所持 1）、GR No.1（所持 2）。キューブ C は超次元を使わず、キューブ B は GR を使わない
+const hdata = () => ({
+  cards: [{ no: 1, name: "P1" }, { no: 2, name: "P2" }],
+  hypers: [{ no: 1, name: "H1", owned: 4 }, { no: 2, name: "H2", owned: 1 }],
+  gr: [{ no: 1, name: "G1", owned: 2 }],
+  cubes: {
+    A: {
+      name: "A", usesHyper: true, usesGR: true, multi: false,
+      cards: [{ no: 1, count: 1 }, { no: 2, count: 1 }], hypers: [{ no: 1, count: 2 }], gr: [{ no: 1, count: 1 }],
+      hyperLinks: [{ id: "a", parent: 1, hyper: 1 }, { id: "b", parent: 2, hyper: 1 }],
+    },
+    B: {
+      name: "B", usesHyper: true, usesGR: false, multi: true,
+      cards: [{ no: 1, count: 1 }], hypers: [{ no: 1, count: 1 }, { no: 2, count: 1 }], gr: [{ no: 1, count: 1 }],
+      hyperLinks: [{ id: "e", parent: 1, hyper: 1 }, { id: "g", parent: 2, hyper: 1 }],
+    },
+    C: { name: "C", usesHyper: false, usesGR: true, multi: false, cards: [], hypers: [{ no: 1, count: 3 }], gr: [{ no: 1, count: 1 }], hyperLinks: [] },
+  },
+});
 
 const cubes = {
   A: {
@@ -93,6 +147,165 @@ const tests = [
   }],
   ["削除：所持 0 でどこにも使われていなければ可", () => {
     eq(canDelete("cards", { no: 9, owned: 0 }, cubes), { ok: true, reasons: [] });
+  }],
+  ["選択肢の名前変更：使っているカードの値を置き換える（所持カードと GR）", () => {
+    eq(choiceChanges(choiceData, "attributes", "SA", "新"), [
+      { ledger: "cards", no: 1, field: "attrs", value: ["新", "ST"] },
+      { ledger: "gr", no: 1, field: "attrs", value: ["新"] },
+    ]);
+  }],
+  ["選択肢の削除：使っているカードから外す", () => {
+    eq(choiceChanges(choiceData, "attributes", "SA", null), [
+      { ledger: "cards", no: 1, field: "attrs", value: ["ST"] },
+      { ledger: "gr", no: 1, field: "attrs", value: [] },
+    ]);
+  }],
+  ["選択肢の名前変更：すでにある値と同じになっても重ならない", () => {
+    eq(choiceChanges(choiceData, "attributes", "SA", "ST")[0].value, ["ST"]);
+  }],
+  ["選択肢の削除：区分は空にする", () => {
+    eq(choiceChanges(choiceData, "kinds", "呪文", null), [{ ledger: "cards", no: 1, field: "kind", value: "" }]);
+  }],
+  ["選択肢：使っていない値は何も書き換えない", () => {
+    eq(choiceChanges(choiceData, "roles", "ドロー", null), []);
+  }],
+  ["使用数：3 つのキューブの枚数の合計。残りは所持 − 使用数", () => {
+    const d = mini();
+    const u = cardUse(d.cards[0], cubeIndex(d.cubes));
+    eq(u.byCube, { X: 1, Y: 2, Z: 0 });
+    eq(u.used, 3);
+    eq(u.remaining, -1);
+  }],
+  ["キューブに入れる：残りが無ければ止める（stock）", () => {
+    eq(cubeAddCheck(mini(), "Z", "cards", mini().cards[0]).reason, "stock");
+  }],
+  ["キューブに入れる：使っていないカードは入れられる", () => {
+    eq(cubeAddCheck(mini(), "Z", "cards", mini().cards[3]).ok, true);
+  }],
+  ["キューブに入れる：1 枚だけのモードでは、本物とプロキシを問わず同名は止める（name）", () => {
+    const r = cubeAddCheck(mini(), "X", "cards", mini().cards[1]);
+    eq(r.ok, false);
+    eq(r.reason, "name");
+    eq(r.card.no, 1);
+  }],
+  ["キューブに入れる：複数枚OKのモードでは、同名でも残りがあれば入れられる", () => {
+    eq(cubeAddCheck(mini(), "Y", "cards", mini().cards[1]).ok, true);
+  }],
+  ["文明の延べ：多色は各文明に枚数ぶん、ゼロ文明は別枠", () => {
+    const d = mini();
+    const t = civTotals([{ card: d.cards[1], count: 2 }, { card: d.cards[2], count: 1 }], d.settings.civs);
+    eq(t.byCiv, { 火: 2, 自然: 0, 水: 2, 光: 0, 闇: 0 });
+    eq([t.zero, t.multi, t.total], [1, 2, 4]);
+  }],
+  ["コストの山：枚数ぶん・cost2・10 以上・コスト無し", () => {
+    const d = mini();
+    const bins = costHistogram(cubeEntries({ ...d, cubes: { Q: { ...d.cubes.Y, cards: [
+      { no: 1, count: 2 }, { no: 2, count: 1 }, { no: 3, count: 1 }, { no: 4, count: 1 },
+    ] } } }, "Q"));
+    eq(bins, [0, 0, 1, 2, 0, 1, 0, 0, 0, 0, 1]);
+  }],
+  ["キューブの集計：種類数・枚数・足りない数", () => {
+    const sum = cubeSummary(mini(), "Y");
+    eq([sum.kinds, sum.copies, sum.shortage], [2, 3, 2]);
+    eq(sum.civ.byCiv.火, 2);
+  }],
+  ["問題のあるカード：1 枚だけのモードで複数枚・同名が複数", () => {
+    const d = mini();
+    d.cubes.X.cards = [{ no: 1, memo: "", count: 2 }, { no: 2, memo: "", count: 1 }];
+    eq(cubeProblems(d, "X"), [
+      { ledger: "cards", no: 1, type: "count" }, { ledger: "cards", no: 1, type: "name" }, { ledger: "cards", no: 2, type: "name" },
+    ]);
+    eq(cubeProblems(d, "Y"), []);
+  }],
+  ["新しいキューブの ID：使われていない英大文字", () => {
+    eq(nextCubeId({ A: 1, B: 1 }), "C");
+    eq(nextCubeId({ B: 1 }), "A");
+    const full = Object.fromEntries(Array.from({ length: 26 }, (_, i) => [String.fromCharCode(65 + i), 1]));
+    eq(nextCubeId(full), "cube-2");
+  }],
+  ["選択肢の使用数：台帳ごとに数える", () => {
+    eq(choiceUsage(choiceData, "attributes", "SA"), { total: 2, byLedger: { cards: 1, gr: 1 } });
+    eq(choiceUsage(choiceData, "hyperKinds", "サイキック・クリーチャー"), { total: 1, byLedger: { hypers: 1 } });
+    eq(choiceUsage(choiceData, "roles", "ドロー"), { total: 0, byLedger: {} });
+  }],
+  ["超次元の使用：キューブに入れた枚数の合計（超次元を使わないキューブは数えない）", () => {
+    const d = hdata();
+    const u = hyperUse(d.hypers[0], d.cubes);
+    eq(u.byCube, { A: 2, B: 1, C: 0 });
+    eq([u.used, u.remaining], [3, 1]);
+    eq(hyperUse(d.hypers[1], d.cubes).remaining, 0);
+  }],
+  ["GR の使用：GR を使うキューブに入れた枚数の合計", () => {
+    const d = hdata();
+    const u = grUse(d.gr[0], d.cubes);
+    eq(u.byCube, { A: 1, B: 0, C: 1 });
+    eq([u.used, u.remaining], [2, 0]);
+  }],
+  ["超次元・GR を入れる：残りが無ければ止める／1 枚だけのモードでは同名を止める／使わないキューブには入れない", () => {
+    const d = hdata();
+    eq(cubeAddCheck(d, "A", "hypers", d.hypers[1]).reason, "stock");
+    eq(cubeAddCheck(d, "A", "hypers", d.hypers[0]).reason, "name");
+    d.cubes.A.multi = true;
+    eq(cubeAddCheck(d, "A", "hypers", d.hypers[0]).ok, true);
+    eq(cubeAddCheck(d, "B", "gr", d.gr[0]).reason, "unused");
+    eq(cubeAddCheck(d, "C", "hypers", d.hypers[0]).reason, "unused");
+    eq(cubeAddCheck(d, "A", "gr", d.gr[0]).reason, "stock");
+  }],
+  ["関連を付ける：付属先・超次元がキューブに入っていて、入れた枚数に達していなければ付けられる", () => {
+    const d = hdata();
+    eq(linkAddCheck(d, "A", 1, 1).reason, "full");
+    eq(linkAddCheck(d, "A", 9, 1).reason, "parent");
+    eq(linkAddCheck(d, "A", 1, 2).reason, "hyper");
+    eq(linkAddCheck(d, "B", 1, 2).ok, true);
+    d.cubes.A.hypers[0].count = 3;
+    eq(linkAddCheck(d, "A", 1, 1).ok, true);
+  }],
+  ["超次元を外す：外すと関連の数が枚数を超えるなら止める", () => {
+    const d = hdata();
+    eq(hyperRemoveCheck(d, "A", 1, 1).reason, "links");
+    eq(hyperRemoveCheck(d, "A", 1, 2).ok, true);
+    eq(hyperRemoveCheck(d, "A", 1, 0).links, 2);
+  }],
+  ["関連の一覧：付属先がメインデッキに入っているか／超次元がキューブに入っているか", () => {
+    const d = hdata();
+    eq(cubeLinks(d, "B").map((l) => `${l.id}:${l.registered}:${l.hyperRegistered}`), ["e:true:true", "g:false:true"]);
+    eq(cubeLinks(d, "A").map((l) => l.id), ["a", "b"]);
+    d.cubes.A.hypers = [];
+    eq(cubeLinks(d, "A").map((l) => l.hyperRegistered), [false, false]);
+  }],
+  ["使われている場所：超次元・GR は、入っているキューブも返す", () => {
+    const d = hdata();
+    eq(usagePlaces("gr", 1, d.cubes), [{ cube: "A", type: "card" }, { cube: "B", type: "card" }, { cube: "C", type: "card" }]);
+    eq(usagePlaces("hypers", 1, d.cubes), [
+      { cube: "A", type: "card" }, { cube: "A", type: "hyper", count: 2 },
+      { cube: "B", type: "card" }, { cube: "B", type: "hyper", count: 2 }, { cube: "C", type: "card" },
+    ]);
+  }],
+  ["問題のあるカード：超次元・GR も見る", () => {
+    const d = hdata();
+    d.cubes.A.hypers[0].count = 2;
+    eq(cubeProblems(d, "A"), [{ ledger: "hypers", no: 1, type: "count" }]);
+  }],
+  ["選択肢：超次元の 3 面の区分を、使っている面だけ書き換える", () => {
+    eq(choiceChanges(choiceData, "hyperKinds", "ドラグハート・ウエポン", "新"), [
+      { ledger: "hypers", no: 2, field: "kind", value: "新" },
+      { ledger: "hypers", no: 2, field: "kind3", value: "新" },
+    ]);
+    eq(choiceUsage(choiceData, "hyperKinds", "ドラグハート・ウエポン"), { total: 1, byLedger: { hypers: 1 } });
+  }],
+  ["検索の条件：何も入っていなければ false。1 つでも入っていれば true", () => {
+    const blank = () => ({ q: "", civs: new Set(), kind: "", attr: "", role: "", costMin: "", costMax: "", proxy: "", minus: false });
+    eq(hasSearchCondition(blank()), false);
+    eq(hasSearchCondition({ ...blank(), q: "   " }), false);
+    for (const patch of [{ q: "ア" }, { civs: new Set(["火"]) }, { kind: "呪文" }, { attr: "SA" }, { role: "除去" },
+      { costMin: "0" }, { costMax: "3" }, { proxy: "real" }, { minus: true }]) {
+      eq(hasSearchCondition({ ...blank(), ...patch }), true);
+    }
+  }],
+  ["選択肢：GR の区分と、超次元の属性・役割", () => {
+    eq(choiceChanges(choiceData, "grKinds", "クリーチャー", null), [{ ledger: "gr", no: 1, field: "kind", value: "" }]);
+    eq(choiceChanges(choiceData, "roles", "受け札", null), [{ ledger: "hypers", no: 2, field: "roles", value: [] }]);
+    eq(choiceChanges(choiceData, "attributes", "MF", "新"), [{ ledger: "hypers", no: 2, field: "attrs", value: ["新"] }]);
   }],
 ];
 

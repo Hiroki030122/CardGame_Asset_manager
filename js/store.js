@@ -2,64 +2,17 @@
 import { db } from "./firebase.js";
 import { DEFAULT_GAME_ID } from "../app-config.js";
 import { doc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import { SCHEMA_VERSION, LEDGERS, ITEM_FIELDS, DEFAULT_SETTINGS, chunkId, itemDefault } from "./model.js";
 
-// 2：各カードに proxy（プロキシか）を追加。1 のデータは proxy: false として読む。
-export const SCHEMA_VERSION = 2;
-export const CHUNK_SIZE = 500;
+// データの形の定義は model.js。これまでどおり store.js からも読めるようにしておく。
+export {
+  SCHEMA_VERSION, CHUNK_SIZE, LEDGERS, LEDGER_LABELS, ITEM_FIELDS, DEFAULT_SETTINGS, SETTING_LABELS, DEFAULT_CUBES,
+  chunkId, emptyItem, nameKey, findByName,
+} from "./model.js";
+
 export const CHUNK_WARN_BYTES = 700 * 1024;
 
 const copy = (v) => (Array.isArray(v) ? [...v] : v);
-
-export const LEDGERS = ["cards", "hypers", "gr"];
-export const LEDGER_LABELS = { cards: "所持カード", hypers: "超次元", gr: "GR" };
-export const ITEM_FIELDS = {
-  cards: ["name", "proxy", "cost", "cost2", "kind", "civs", "attrs", "roles", "memo", "owned"],
-  hypers: ["name", "proxy", "cost", "kind", "civs", "back", "memo", "owned"],
-  gr: ["name", "proxy", "cost", "civs", "attrs", "roles", "memo", "owned"],
-};
-const ITEM_DEFAULTS = {
-  name: "", proxy: false, cost: null, cost2: null, kind: "", civs: [], attrs: [], roles: [], back: "", memo: "", owned: 0,
-};
-
-export function emptyItem(ledger) {
-  const item = {};
-  for (const f of ITEM_FIELDS[ledger]) item[f] = copy(ITEM_DEFAULTS[f]);
-  return item;
-}
-
-// 同じ名前かの判定用。全角／半角の違い、前後の空白、続いた空白を無視する。
-export function nameKey(name) {
-  return String(name ?? "").normalize("NFKC").trim().replace(/\s+/g, " ");
-}
-
-// 本物とプロキシは別のカードとして扱う
-export function findByName(items, name, proxy, exceptNo = null) {
-  const key = nameKey(name);
-  if (!key) return null;
-  return items.find((it) => it.no !== exceptNo && !!it.proxy === !!proxy && nameKey(it.name) === key) ?? null;
-}
-
-export const DEFAULT_SETTINGS = {
-  civs: ["火", "自然", "水", "光", "闇"],
-  attributes: ["SA", "ST", "ブロッカー", "ハンデス", "シノビ", "進化", "MF"],
-  roles: ["除去", "ドロー", "ブースト", "フィニッシャー", "踏み倒し", "受け札"],
-  kinds: ["クリーチャー", "呪文", "ツインパクト", "クロスギア", "城", "D2フィールド", "オーラ", "タマシード"],
-  hyperKinds: [
-    "サイキック・クリーチャー", "サイキック・スーパー・クリーチャー", "サイキック・クロスギア",
-    "ドラグハート・ウエポン", "ドラグハート・フォートレス", "ドラグハート・クリーチャー",
-  ],
-};
-export const SETTING_LABELS = {
-  civs: "文明", attributes: "属性", roles: "役割", kinds: "区分", hyperKinds: "超次元の区分",
-};
-export const DEFAULT_CUBES = {
-  A: { name: "キューブA", usesGR: true },
-  B: { name: "キューブB", usesGR: false },
-};
-
-export function chunkId(ledger, no) {
-  return `${ledger}_${Math.floor((no - 1) / CHUNK_SIZE)}`;
-}
 
 export const gameId = resolveGameId(globalThis.location?.search ?? "");
 export const isTestGame = gameId !== DEFAULT_GAME_ID;
@@ -71,6 +24,11 @@ function resolveGameId(search) {
 }
 
 // ---- 変換（純粋関数） ----
+
+// キューブの中のリスト（メインデッキ・超次元・GR）。番号 → { memo, count } の入れ物を、配列にする
+const cubeList = (obj) => Object.entries(obj ?? {})
+  .map(([k, v]) => ({ no: Number(k), memo: v?.memo ?? "", count: Number.isInteger(v?.count) && v.count >= 1 ? v.count : 1 }))
+  .sort((a, b) => a.no - b.no);
 
 // Firestore のドキュメント → 論理形式
 export function logicalFromDocs(game, ledgerDocs, cubeDocs) {
@@ -92,7 +50,7 @@ export function logicalFromDocs(game, ledgerDocs, cubeDocs) {
       const no = Number(key);
       if (!Number.isInteger(no) || no < 1) continue;
       const rec = { no };
-      for (const f of ITEM_FIELDS[ledger]) rec[f] = copy(item?.[f] ?? ITEM_DEFAULTS[f]);
+      for (const f of ITEM_FIELDS[ledger]) rec[f] = copy(item?.[f] ?? itemDefault(f));
       out[ledger].push(rec);
     }
   }
@@ -103,9 +61,11 @@ export function logicalFromDocs(game, ledgerDocs, cubeDocs) {
     out.cubes[id] = {
       name: data.name ?? id,
       usesGR: !!data.usesGR,
-      cards: Object.entries(data.cards ?? {})
-        .map(([k, v]) => ({ no: Number(k), memo: v?.memo ?? "" }))
-        .sort((a, b) => a.no - b.no),
+      usesHyper: data.usesHyper ?? true,
+      multi: !!data.multi,
+      cards: cubeList(data.cards),
+      hypers: cubeList(data.hypers),
+      gr: cubeList(data.gr),
       hyperLinks: Object.entries(data.links ?? {})
         .map(([k, v]) => ({ id: k, parent: v?.parent, hyper: v?.hyper, memo: v?.memo ?? "" }))
         .sort((a, b) => a.parent - b.parent || a.hyper - b.hyper),
@@ -128,11 +88,17 @@ export function docsFromLogical(data) {
   }
   const cubes = new Map();
   Object.entries(data.cubes).forEach(([id, cube], order) => {
-    const cards = {};
-    for (const c of cube.cards) cards[String(c.no)] = { memo: c.memo };
+    const lists = {};
+    for (const ledger of ["cards", "hypers", "gr"]) {
+      lists[ledger] = {};
+      for (const c of cube[ledger] ?? []) lists[ledger][String(c.no)] = { memo: c.memo, count: c.count ?? 1 };
+    }
     const links = {};
     for (const l of cube.hyperLinks) links[l.id] = { parent: l.parent, hyper: l.hyper, memo: l.memo };
-    cubes.set(id, { name: cube.name, usesGR: cube.usesGR, order, cards, links });
+    cubes.set(id, {
+      name: cube.name, usesGR: cube.usesGR, usesHyper: cube.usesHyper ?? true, multi: !!cube.multi, order,
+      cards: lists.cards, hypers: lists.hypers, gr: lists.gr, links,
+    });
   });
   return { chunks, cubes };
 }
@@ -272,6 +238,7 @@ export function errorMessage(err) {
     case "unavailable": return "サーバーにつながりません";
     case "offline": return "オフラインのため登録できません。つながってから登録してください";
     case "not-found": return "データが見つかりません";
+    case "already-exists": return err.message;
     default: return err?.code || err?.message || String(err);
   }
 }
