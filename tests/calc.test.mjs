@@ -2,7 +2,7 @@
 import {
   cubeIndex, cardUse, usagePlaces, firstFreeNo, canDelete, choiceChanges, choiceUsage,
   cubeEntries, cubeAddCheck, civTotals, costHistogram, cubeSummary, cubeProblems, nextCubeId,
-  hyperUse, grUse, linkAddCheck, hyperRemoveCheck, cubeLinks, hasSearchCondition,
+  hyperUse, grUse, linkAddCheck, hyperRemoveCheck, cubeLinks, linksByHyper, linksByParent, linkSummary, linkPairs, hasSearchCondition,
 } from "../js/calc.js";
 
 // キューブ 3 つ（X：1 枚だけ、Y：複数枚OK、Z：空）。No.1 は所持 2 で X に 1 枚・Y に 2 枚入っている
@@ -112,7 +112,7 @@ const tests = [
   ["使われている場所：どこにも無いカードは空", () => {
     eq(usagePlaces("cards", 9, cubes), []);
   }],
-  ["使われている場所：超次元は関連の数", () => {
+  ["使われている場所：超次元は対応の数", () => {
     eq(usagePlaces("hypers", 1, cubes), [
       { cube: "A", type: "hyper", count: 1 },
       { cube: "B", type: "hyper", count: 1 },
@@ -251,7 +251,7 @@ const tests = [
     eq(cubeAddCheck(d, "C", "hypers", d.hypers[0]).reason, "unused");
     eq(cubeAddCheck(d, "A", "gr", d.gr[0]).reason, "stock");
   }],
-  ["関連を付ける：付属先・超次元がキューブに入っていて、入れた枚数に達していなければ付けられる", () => {
+  ["対応を付ける：付属先・超次元がキューブに入っていて、入れた枚数に達していなければ付けられる", () => {
     const d = hdata();
     eq(linkAddCheck(d, "A", 1, 1).reason, "full");
     eq(linkAddCheck(d, "A", 9, 1).reason, "parent");
@@ -260,18 +260,44 @@ const tests = [
     d.cubes.A.hypers[0].count = 3;
     eq(linkAddCheck(d, "A", 1, 1).ok, true);
   }],
-  ["超次元を外す：外すと関連の数が枚数を超えるなら止める", () => {
+  ["超次元を外す：外すと対応の数が枚数を超えるなら止める", () => {
     const d = hdata();
     eq(hyperRemoveCheck(d, "A", 1, 1).reason, "links");
     eq(hyperRemoveCheck(d, "A", 1, 2).ok, true);
     eq(hyperRemoveCheck(d, "A", 1, 0).links, 2);
   }],
-  ["関連の一覧：付属先がメインデッキに入っているか／超次元がキューブに入っているか", () => {
+  ["対応の一覧：付属先がメインデッキに入っているか／超次元がキューブに入っているか", () => {
     const d = hdata();
     eq(cubeLinks(d, "B").map((l) => `${l.id}:${l.registered}:${l.hyperRegistered}`), ["e:true:true", "g:false:true"]);
     eq(cubeLinks(d, "A").map((l) => l.id), ["a", "b"]);
     d.cubes.A.hypers = [];
     eq(cubeLinks(d, "A").map((l) => l.hyperRegistered), [false, false]);
+  }],
+  ["超次元ごとの対応：入れた枚数・対応の数・足りない枚数", () => {
+    const d = hdata();
+    eq(linksByHyper(d, "A").map((x) => [x.hyper.no, x.count, x.links.length, x.free]), [[1, 2, 2, 0]]);
+    eq(linksByHyper(d, "B").map((x) => [x.hyper.no, x.count, x.links.length, x.free]), [[1, 1, 2, 0], [2, 1, 0, 1]]);
+    eq(linksByHyper(d, "B")[0].links.map((l) => l.registered), [true, false]);
+  }],
+  ["メインデッキごとの対応：対応のないカードも出る", () => {
+    const d = hdata();
+    eq(linksByParent(d, "A").map((x) => [x.card.no, x.links.map((l) => l.hyperItem.no)]), [[1, [1]], [2, [1]]]);
+    eq(linksByParent(d, "C").map((x) => x.card.no), []);
+    d.cubes.A.cards.push({ no: 3, count: 1 });
+    d.cards.push({ no: 3, name: "P3" });
+    eq(linksByParent(d, "A")[2].links, []);
+  }],
+  ["対応の組：同じ組はまとめ、付属先・超次元の番号順に並ぶ", () => {
+    const d = hdata();
+    d.cubes.B.hyperLinks.push({ id: "h", parent: 1, hyper: 1 });
+    const pairs = linkPairs(d, "B");
+    eq(pairs.map((p) => [p.parentCard.no, p.hyperItem.no, p.links.length, p.registered]), [[1, 1, 2, true], [2, 1, 1, false]]);
+    eq(linkPairs(d, "C"), []);
+  }],
+  ["対応のまとめ：足りない枚数と未登録の数", () => {
+    const d = hdata();
+    eq(linkSummary(d, "A"), { hyperKinds: 1, hyperCopies: 2, links: 2, uncovered: 0, orphans: 0 });
+    eq(linkSummary(d, "B"), { hyperKinds: 2, hyperCopies: 2, links: 2, uncovered: 1, orphans: 1 });
   }],
   ["使われている場所：超次元・GR は、入っているキューブも返す", () => {
     const d = hdata();
