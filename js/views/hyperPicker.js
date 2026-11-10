@@ -12,7 +12,7 @@ export function openHyperPicker(cubeId, parentNo) {
   const list = h("div", { class: "picker-list" });
   const input = h("input", { type: "search", placeholder: "超次元の名前の一部、または番号", "aria-label": "検索" });
   input.addEventListener("input", () => { query = input.value; render(); });
-  const memo = h("input", { type: "text", "aria-label": "メモ", placeholder: "関連のメモ（空でよい）" });
+  const memo = h("input", { type: "text", "aria-label": "メモ", placeholder: "対応のメモ（空でよい）" });
 
   const body = h("div", { class: "modal-form" },
     h("div", { class: "modal-body" }, input, memo, list),
@@ -55,8 +55,8 @@ export function openHyperPicker(cubeId, parentNo) {
           h("div", null, `No.${hyper.no} `, h("strong", null, hyper.name), " ", hyper.proxy ? proxyBadge() : null),
           h("div", { class: "tile-row" }, civChips(hyper.civs), h("span", { class: "muted" }, `コスト ${costText(hyper)}`),
             kindText(hyper) ? h("span", { class: "muted" }, kindText(hyper)) : null),
-          h("div", { class: "muted" }, `このキューブに ${entry.count ?? 1} 枚・関連 ${all} 件`, here ? `（このカードに ${here} 件）` : ""),
-          check.ok ? null : h("div", { class: "warn-text" }, "入れた枚数まで関連を付けているため、付けられません（超次元を増やすか、関連を外してください）")),
+          h("div", { class: "muted" }, `このキューブに ${entry.count ?? 1} 枚・対応 ${all} 件`, here ? `（このカードに ${here} 件）` : ""),
+          check.ok ? null : h("div", { class: "warn-text" }, "入れた枚数まで対応を付けているため、付けられません（超次元を増やすか、対応を外してください）")),
         attach);
     });
 

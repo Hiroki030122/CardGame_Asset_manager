@@ -103,7 +103,7 @@ const tests = [
     eq(p.cubes.A.create, null);
     eq(p.cubes.A.addCards, [{ no: 2, memo: "y", count: 1 }]);
   }],
-  ["追加：超次元の関連の番号を付け替える", () => {
+  ["追加：超次元の対応の番号を付け替える", () => {
     const p = planAppend(base(), incomingBase());
     eq(p.cubes.A.addLinks, [{ id: "l1", parent: 2, hyper: 1, memo: "m" }]);
   }],
@@ -148,7 +148,7 @@ const tests = [
     eq(q.cubes.A.addGr, []);
     eq(q.warnings.length, 1);
   }],
-  ["追加：入れた超次元の枚数を超える関連は足さない", () => {
+  ["追加：入れた超次元の枚数を超える対応は足さない", () => {
     const current = base();
     current.cards.push(card(4, "N", false, 1));
     current.hypers.push(hyper(1, "H", false, 1));
@@ -156,7 +156,7 @@ const tests = [
     const p = planAppend(current, incomingBase());
     eq(p.cubes.A.addLinks, []);
   }],
-  ["追加：関連の id が重なったら別の id にする", () => {
+  ["追加：対応の id が重なったら別の id にする", () => {
     const current = base();
     current.cubes.A.hyperLinks = [{ id: "l1", parent: 3, hyper: 9, memo: "" }];
     const p = planAppend(current, incomingBase());
@@ -198,7 +198,7 @@ const tests = [
     eq(p.cubes.C.create.multi, true);
     eq(p.cubes.C.addCards, [{ no: 2, memo: "", count: 2 }]);
   }],
-  ["追加：超次元を使わないキューブには、超次元も関連も足さず、警告を出す", () => {
+  ["追加：超次元を使わないキューブには、超次元も対応も足さず、警告を出す", () => {
     const current = base();
     current.cubes.A.usesHyper = false;
     const p = planAppend(current, incomingBase());

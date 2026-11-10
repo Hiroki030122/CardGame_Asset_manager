@@ -120,7 +120,7 @@ export function firstFreeNo(items, from, to) {
   return null;
 }
 
-// 削除してよいか。所持が残っている、またはキューブ・超次元の関連で使われていれば不可。
+// 削除してよいか。所持が残っている、またはキューブ・超次元の対応で使われていれば不可。
 export function canDelete(ledger, item, cubes) {
   const places = usagePlaces(ledger, item.no, cubes);
   const reasons = [];
@@ -130,7 +130,7 @@ export function canDelete(ledger, item, cubes) {
 }
 
 // 削除してよいかの判定用。使われている場所の一覧（空なら削除してよい）。
-// type: "card"（キューブに入っている。どの台帳でも）/ "parent"（超次元の付属先）/ "hyper"（関連の超次元）
+// type: "card"（キューブに入っている。どの台帳でも）/ "parent"（超次元の付属先）/ "hyper"（対応の超次元）
 export function usagePlaces(ledger, no, cubes) {
   const places = [];
   for (const [id, cube] of Object.entries(cubes)) {
@@ -195,10 +195,10 @@ export function choiceUsage(data, key, value) {
   return { total: seen.size, byLedger };
 }
 
-// ---- 超次元の関連（キューブの中で、メインデッキのカードと、キューブに入れた超次元を結びつける） ----
+// ---- 超次元の対応（キューブの中で、メインデッキのカードと、キューブに入れた超次元を結びつける） ----
 
-// 関連を 1 つ付けてよいか。付属先がキューブのメインデッキにいる（parent）、超次元がキューブに入っている（hyper）、
-// その超次元への関連の数が、入れた枚数に達していない（full）。同じ「付属先 × 超次元」は何回でも付けられる。
+// 対応を 1 つ付けてよいか。付属先がキューブのメインデッキにいる（parent）、超次元がキューブに入っている（hyper）、
+// その超次元への対応の数が、入れた枚数に達していない（full）。同じ「付属先 × 超次元」は何回でも付けられる。
 export function linkAddCheck(data, cubeId, parentNo, hyperNo) {
   const cube = data.cubes[cubeId];
   if (!cube) return { ok: false, reason: "nocube" };
@@ -210,7 +210,7 @@ export function linkAddCheck(data, cubeId, parentNo, hyperNo) {
   return links >= count ? { ok: false, reason: "full", count, links } : { ok: true, count, links };
 }
 
-// 超次元を外して、入れた枚数が newCount になるとき、関連の数が枚数を超えてしまわないか（links）
+// 超次元を外して、入れた枚数が newCount になるとき、対応の数が枚数を超えてしまわないか（links）
 export function hyperRemoveCheck(data, cubeId, hyperNo, newCount) {
   const cube = data.cubes[cubeId];
   if (!cube) return { ok: true };
@@ -218,8 +218,8 @@ export function hyperRemoveCheck(data, cubeId, hyperNo, newCount) {
   return links > newCount ? { ok: false, reason: "links", links } : { ok: true };
 }
 
-// キューブの関連の一覧。付属先・超次元の中身と、付属先がキューブのメインデッキにいるか（registered）、
-// 超次元がキューブに入っているか（hyperRegistered）を付ける。付属先か超次元が台帳に無い関連は含めない。
+// キューブの対応の一覧。付属先・超次元の中身と、付属先がキューブのメインデッキにいるか（registered）、
+// 超次元がキューブに入っているか（hyperRegistered）を付ける。付属先か超次元が台帳に無い対応は含めない。
 export function cubeLinks(data, cubeId) {
   const cube = data.cubes[cubeId];
   if (!cube) return [];
@@ -233,6 +233,64 @@ export function cubeLinks(data, cubeId) {
       ...l, parentCard: cards.get(l.parent), hyperItem: hypers.get(l.hyper),
       registered: inCards.has(l.parent), hyperRegistered: inHypers.has(l.hyper),
     }));
+}
+
+// 超次元ごとの対応。キューブに入れた超次元ごとに { hyper, count, links: [{ link, parentCard, registered }], free }。
+// free＝入れた枚数 − 対応の数（0 以上。まだ対応していない枚数）。
+export function linksByHyper(data, cubeId) {
+  const cube = data.cubes[cubeId];
+  if (!cube) return [];
+  const all = cubeLinks(data, cubeId);
+  const hypers = new Map(data.hypers.map((x) => [x.no, x]));
+  return (cube.hypers ?? [])
+    .filter((e) => hypers.has(e.no))
+    .map((e) => {
+      const links = all.filter((l) => l.hyper === e.no).map((l) => ({ link: l, parentCard: l.parentCard, registered: l.registered }));
+      const count = e.count ?? 1;
+      return { hyper: hypers.get(e.no), count, links, free: Math.max(0, count - links.length) };
+    });
+}
+
+// メインデッキのカードごとの対応。キューブのメインデッキのカードごとに { card, count, links: [{ link, hyperItem, hyperRegistered }] }（対応のないカードも含む）
+export function linksByParent(data, cubeId) {
+  const cube = data.cubes[cubeId];
+  if (!cube) return [];
+  const all = cubeLinks(data, cubeId);
+  const cards = new Map(data.cards.map((c) => [c.no, c]));
+  return cube.cards
+    .filter((e) => cards.has(e.no))
+    .map((e) => ({
+      card: cards.get(e.no),
+      count: e.count ?? 1,
+      links: all.filter((l) => l.parent === e.no).map((l) => ({ link: l, hyperItem: l.hyperItem, hyperRegistered: l.hyperRegistered })),
+    }));
+}
+
+// 対応を「付属先 × 超次元」の組にまとめる（同じ組が複数あるときは links に全部入る）。付属先の番号、超次元の番号の順。
+// [{ parentCard, hyperItem, links: [link, …], registered, hyperRegistered }]
+export function linkPairs(data, cubeId) {
+  const pairs = new Map();
+  for (const l of cubeLinks(data, cubeId)) {
+    const key = `${l.parent}:${l.hyper}`;
+    if (!pairs.has(key)) {
+      pairs.set(key, { parentCard: l.parentCard, hyperItem: l.hyperItem, links: [], registered: l.registered, hyperRegistered: l.hyperRegistered });
+    }
+    pairs.get(key).links.push(l);
+  }
+  return [...pairs.values()].sort((a, b) => a.parentCard.no - b.parentCard.no || a.hyperItem.no - b.hyperItem.no);
+}
+
+// 対応のまとめ。uncovered＝対応が足りない超次元の枚数の合計、orphans＝付属先か超次元がキューブに無い対応の数
+export function linkSummary(data, cubeId) {
+  const byHyper = linksByHyper(data, cubeId);
+  const all = cubeLinks(data, cubeId);
+  return {
+    hyperKinds: byHyper.length,
+    hyperCopies: byHyper.reduce((n, x) => n + x.count, 0),
+    links: all.length,
+    uncovered: byHyper.reduce((n, x) => n + x.free, 0),
+    orphans: all.filter((l) => !l.registered || !l.hyperRegistered).length,
+  };
 }
 
 // ---- 検索 ----

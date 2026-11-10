@@ -40,10 +40,11 @@ function parseRoute() {
   } catch {
     parts = [];
   }
-  const [name, param = null] = parts;
+  const [name, param = null, sub = null] = parts;
   // 前の URL（#/search/hypers・#/search/gr）は、カード一覧として開く
-  if (name === "search" && param in LIST_LEDGER) return { name: "list", param };
-  return ROUTES.includes(name) ? { name, param } : { name: "search", param: null };
+  if (name === "search" && param in LIST_LEDGER) return { name: "list", param, sub: null };
+  // sub：キューブの画面の表示（#/cube/A/links など）
+  return ROUTES.includes(name) ? { name, param, sub } : { name: "search", param: null, sub: null };
 }
 
 function activeTabKey(r) {

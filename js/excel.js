@@ -26,7 +26,7 @@ export function describeCounts(data) {
     ...LEDGERS.map((l) => `${LEDGER_LABELS[l]} ${data[l].length} 件`),
     ...Object.values(data.cubes).map((c) => {
       const copies = (list) => (list ?? []).reduce((n, x) => n + (x.count ?? 1), 0);
-      return `${c.name}：メインデッキ ${copies(c.cards)} 枚、超次元 ${copies(c.hypers)} 枚、GR ${copies(c.gr)} 枚、超次元の関連 ${c.hyperLinks.length} 件`;
+      return `${c.name}：メインデッキ ${copies(c.cards)} 枚、超次元 ${copies(c.hypers)} 枚、GR ${copies(c.gr)} 枚、超次元の対応 ${c.hyperLinks.length} 件`;
     }),
   ];
 }
@@ -183,7 +183,7 @@ export function parseLogicalJson(text) {
     const hyperLinks = [];
     const linkIds = new Set();
     (Array.isArray(src.hyperLinks) ? src.hyperLinks : []).forEach((l, i) => {
-      const at = `${where} の超次元の関連 ${i + 1} 件目`;
+      const at = `${where} の超次元の対応 ${i + 1} 件目`;
       if (!isObject(l)) return errors.push(`${at}：形が違います。`);
       const linkId = l.id ?? crypto.randomUUID();
       if (typeof linkId !== "string" || !KEY_PATTERN.test(linkId)) return errors.push(`${at}：id は英数字とハイフンにしてください。`);
@@ -303,7 +303,7 @@ export function describePlan(plan) {
   }
   const t = planTotals(plan);
   if (t.cubeCards || t.cubeHypers || t.cubeGr || t.cubeLinks) {
-    lines.push(`キューブ：メインデッキ ${t.cubeCards} 種類、超次元 ${t.cubeHypers} 種類、GR ${t.cubeGr} 種類、超次元の関連 ${t.cubeLinks} 件を追加`);
+    lines.push(`キューブ：メインデッキ ${t.cubeCards} 種類、超次元 ${t.cubeHypers} 種類、GR ${t.cubeGr} 種類、超次元の対応 ${t.cubeLinks} 件を追加`);
   }
   if (t.settings) lines.push(`選択肢：${t.settings} 件を追加`);
   return lines;

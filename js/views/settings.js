@@ -130,7 +130,7 @@ async function onDeleteCube(id) {
     title: `「${cube.name}」を削除しますか？`,
     message: [
       filled
-        ? `入っているカード（メインデッキ ${cube.cards.length} 種類・超次元 ${(cube.hypers ?? []).length} 種類・GR ${(cube.gr ?? []).length} 種類）と、超次元の関連 ${cube.hyperLinks.length} 件も一緒に消えます。元に戻せません。`
+        ? `入っているカード（メインデッキ ${cube.cards.length} 種類・超次元 ${(cube.hypers ?? []).length} 種類・GR ${(cube.gr ?? []).length} 種類）と、超次元の対応 ${cube.hyperLinks.length} 件も一緒に消えます。元に戻せません。`
         : "中身は空です。",
       filled ? "削除する前に、今のデータを JSON に自動で書き出します。" : null,
     ].filter(Boolean),

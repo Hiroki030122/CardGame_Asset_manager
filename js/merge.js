@@ -70,7 +70,7 @@ export function planBulk(current, ledger, lines, proxy) {
 }
 
 // JSON（論理形式）の内容を、今のデータに足す。
-// 同じ名前のカードは枚数だけ足し、新しいカードには空き番号を振って、キューブ・関連の番号も付け替える。
+// 同じ名前のカードは枚数だけ足し、新しいカードには空き番号を振って、キューブ・対応の番号も付け替える。
 export function planAppend(current, incoming) {
   const warnings = [];
   const ledgers = {};
@@ -146,13 +146,13 @@ export function planAppend(current, incoming) {
       inCube[ledger] = have;
     }
 
-    // 関連：付属先（メインデッキ）も超次元もこのキューブに入っていて、その超次元の枚数を超えない範囲だけ足す
+    // 対応：付属先（メインデッキ）も超次元もこのキューブに入っていて、その超次元の枚数を超えない範囲だけ足す
     const linkIds = new Set((existing?.hyperLinks ?? []).map((l) => l.id));
     const perHyper = new Map();
     for (const l of existing?.hyperLinks ?? []) perHyper.set(l.hyper, (perHyper.get(l.hyper) ?? 0) + 1);
     let skipped = 0;
     if (!usesHyper && src.hyperLinks.length) {
-      warnings.push(`${cubeName}：超次元を使わない設定のため、超次元の関連 ${src.hyperLinks.length} 件は足しませんでした`);
+      warnings.push(`${cubeName}：超次元を使わない設定のため、超次元の対応 ${src.hyperLinks.length} 件は足しませんでした`);
     }
     for (const l of usesHyper ? src.hyperLinks : []) {
       const parent = noMap.cards.get(l.parent);
@@ -169,7 +169,7 @@ export function planAppend(current, incoming) {
       plan.addLinks.push({ id: linkId, parent, hyper, memo: l.memo });
     }
     if (skipped) {
-      warnings.push(`${cubeName}：付属先か超次元がキューブに入っていない、または超次元の枚数を超えるため、関連 ${skipped} 件は足しませんでした`);
+      warnings.push(`${cubeName}：付属先か超次元がキューブに入っていない、または超次元の枚数を超えるため、対応 ${skipped} 件は足しませんでした`);
     }
 
     cubes[id] = plan;

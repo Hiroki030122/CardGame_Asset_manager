@@ -1,42 +1,42 @@
-// 「超次元」タブ（#/hyper）。SPEC.md 5-6。キューブごとの関連の概要。超次元の一覧はカード一覧（#/list/hypers）で見る。
-// 関連を付けるのはキューブ画面。ここでは見る・外すだけ。
-import { h, section } from "../ui.js";
-import { cubeLinks } from "../calc.js";
-import { removeHyperLink } from "./cubeOps.js";
+// 「超次元」タブ（#/hyper）。SPEC.md 5-6。キューブを選んで、超次元の対応を見やすく見る（まとめ・進み具合・見方の切り替え・絞り込み）。
+// 超次元の一覧はカード一覧（#/list/hypers）で見る。対応を付けるのはキューブの画面。
+import { h, section, loadPref, savePref } from "../ui.js";
+import { createLinkView } from "./linkView.js";
 
 export function mount(el, ctx) {
-  const overview = h("div");
-  el.append(overview);
+  let cubeId = loadPref("linkCube", null);
+  let current = ctx;
+  const switcher = h("div", { class: "segmented cube-switch", role: "group", "aria-label": "キューブの切り替え" });
+  const view = createLinkView({ cubeLink: true });
+  const empty = h("div");
+  const foot = h("p", { class: "muted" }, h("a", { href: "#/list/hypers" }, "超次元の一覧は、カード一覧で見られます"));
+  el.append(switcher, view.el, empty, foot);
 
   function update(next) {
-    overview.replaceChildren(
-      ...overviewSections(next.state.data, next.admin),
-      h("p", { class: "muted" }, h("a", { href: "#/list/hypers" }, "超次元の一覧は、カード一覧で見られます")));
+    current = next;
+    const data = next.state.data;
+    const cubes = Object.entries(data.cubes).filter(([, c]) => c.usesHyper !== false);
+    switcher.hidden = !cubes.length;
+    view.el.hidden = !cubes.length;
+    if (!cubes.length) {
+      empty.replaceChildren(section("超次元の対応",
+        h("p", { class: "muted" }, "超次元を使うキューブがありません（設定のキューブで「超次元を使う」をオンにできます）。")));
+      return;
+    }
+    empty.replaceChildren();
+    if (!cubes.some(([id]) => id === cubeId)) cubeId = cubes[0][0];
+    switcher.replaceChildren(...cubes.map(([id, cube]) => {
+      const btn = h("button", { type: "button", "aria-pressed": String(id === cubeId) }, cube.name);
+      btn.addEventListener("click", () => {
+        cubeId = id;
+        savePref("linkCube", id);
+        update(current);
+      });
+      return btn;
+    }));
+    view.update({ data, cubeId, admin: next.admin });
   }
 
   update(ctx);
   return { update };
-}
-
-function overviewSections(data, admin) {
-  const cubes = Object.entries(data.cubes).filter(([, c]) => c.usesHyper);
-  if (!cubes.length) {
-    return [section("キューブごとの関連", h("p", { class: "muted" }, "超次元を使うキューブがありません（設定のキューブで「超次元を使う」をオンにできます）。"))];
-  }
-  return cubes.map(([id, cube]) => {
-    const links = cubeLinks(data, id).sort((a, b) => a.parent - b.parent || a.hyper - b.hyper);
-    const have = (cube.hypers ?? []).reduce((n, x) => n + (x.count ?? 1), 0);
-    return section(`${cube.name}の関連（${links.length} 件・入れた超次元 ${have} 枚）`,
-      h("p", { class: "muted" }, h("a", { href: `#/cube/${id}` }, "キューブの画面で付けたり外したりできます")),
-      links.length
-        ? h("ul", { class: "cube-rows" }, links.map((l) => h("li", { class: "cube-row" },
-          h("a", { href: `#/card/${l.parent}` }, l.parentCard.name),
-          h("span", null, "→"),
-          h("a", { href: `#/hyper/${l.hyper}` }, l.hyperItem.name),
-          l.registered ? null : h("span", { class: "minus" }, "付属先が未登録"),
-          l.hyperRegistered ? null : h("span", { class: "minus" }, "超次元がキューブに無い"),
-          l.memo ? h("span", { class: "muted" }, `メモ：${l.memo}`) : null,
-          admin ? h("button", { type: "button", class: "sub small", onclick: () => removeHyperLink(id, l, l.hyperItem.name) }, "外す") : null)))
-        : h("p", { class: "muted" }, "まだ関連がありません。"));
-  });
 }

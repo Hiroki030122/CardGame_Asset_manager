@@ -353,6 +353,81 @@ table.grid td .row-ctls { flex-wrap: nowrap; gap: 4px 8px; }
 table.grid td .cube-ctls { flex-wrap: nowrap; }
 .row-ctls button, .stepper button { min-height: 36px; }
 
+/* ---- 超次元の対応 ---- */
+.badge.bad { background: #fee2e2; color: #b91c1c; }
+.badge.ok { background: #dcfce7; color: #15803d; }
+@media (prefers-color-scheme: dark) {
+  .badge.bad { background: #3b1414; color: #fca5a5; }
+  .badge.ok { background: #12301c; color: #86efac; }
+}
+.cube-switch { display: flex; flex-wrap: wrap; margin-bottom: 8px; }
+.cube-switch button { flex: 1 1 auto; }
+.link-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
+.link-toolbar input[type="search"] { flex: 1 1 160px; min-width: 0; }
+.link-summary { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.link-rows { display: flex; flex-direction: column; gap: 8px; }
+.link-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left-width: 5px;
+  border-radius: 10px;
+}
+.link-row.full { border-left-color: var(--ok); }
+.link-row.need { border-left-color: var(--warn); }
+.link-row.over { border-left-color: var(--danger); }
+.link-row.dim { opacity: .6; }
+.link-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.link-name { font-weight: 700; color: var(--text); text-decoration: none; overflow-wrap: anywhere; }
+.link-meter { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.meter { flex: 1 1 120px; max-width: 240px; height: 8px; background: var(--surface-2); border-radius: 4px; overflow: hidden; }
+.meter-fill { height: 100%; background: var(--ok); }
+.link-row.need .meter-fill { background: var(--warn); }
+.link-row.over .meter-fill { background: var(--danger); }
+.link-count { font-size: 13px; }
+.chip.bad { border-color: var(--danger); color: var(--danger); }
+.link-orphans { margin-top: 12px; }
+
+/* 小さなカード：2 枚を横に並べて「対応」を表す */
+.view-switch { display: flex; flex-wrap: wrap; margin-bottom: 8px; }
+.view-switch a { flex: 1 1 auto; }
+.mini-card {
+  display: flex;
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  color: var(--text);
+  text-decoration: none;
+}
+.mini-card.bad { border-color: var(--danger); }
+.mini-strip { flex: 0 0 8px; display: flex; flex-direction: column; }
+.mini-strip .seg { flex: 1 1 0; min-height: 4px; }
+.mini-body { display: flex; flex-direction: column; gap: 2px; padding: 6px 8px; min-width: 0; }
+.mini-tag { font-size: 11px; color: var(--muted); }
+.mini-name { font-weight: 700; overflow-wrap: anywhere; }
+.mini-meta { font-size: 12px; color: var(--muted); }
+.mini-bad { font-size: 12px; font-weight: 600; color: var(--danger); }
+.pair-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 8px; align-items: stretch; }
+.pair-row.bad .mini-card { border-style: dashed; }
+.pair-x { align-self: center; }
+.parent-block {
+  display: grid;
+  grid-template-columns: minmax(0, 40%) minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  padding: 8px;
+  background: var(--surface-2);
+  border-radius: 10px;
+}
+.parent-hypers { display: flex; flex-wrap: wrap; gap: 6px; }
+.hyper-slot { display: flex; align-items: center; gap: 4px; flex: 1 1 140px; min-width: 0; }
+.hyper-slot .mini-card { flex: 1 1 auto; }
+
 /* ---- 検索：台帳ごとの結果 ---- */
 .search-hint { padding: 24px 4px; text-align: center; }
 .search-group { margin-bottom: 16px; }

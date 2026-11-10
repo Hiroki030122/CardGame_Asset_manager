@@ -1,20 +1,35 @@
-// キューブ画面（#/cube/<id>）。SPEC.md 5-5。上にミニ集計、続けてメインデッキ・超次元・GR の 3 つのリスト、最後に未登録の関連。
+// キューブ画面（#/cube/<id>[/<表示>]）。SPEC.md 5-5。上に表示の切り替えとミニ集計、続けてメインデッキ・超次元・GR の 3 つのリスト、超次元の対応。
 // 3 つのリストは、このキューブに入れたものだけを出す（台帳の全部を並べない）。リストごとに「＋ … を入れる」がある。
-import { h, section, stackedBar, barChart, CIV_CLASSES } from "../ui.js";
+// 表示の切り替え：すべて／メインデッキ／超次元／GR／対応／分布。情報が増えても、見たいものだけを出せる。
+import { h, section, stackedBar, barChart, CIV_CLASSES, loadPref, savePref } from "../ui.js";
 import { LEDGER_LABELS, cubeUses } from "../model.js";
-import { cubeSummary, cubeProblems, cubeLinks } from "../calc.js";
+import { cubeSummary, cubeProblems } from "../calc.js";
 import * as cardList from "./cardList.js";
 import { openCubePicker } from "./cubePicker.js";
-import { changeMulti, removeHyperLink } from "./cubeOps.js";
+import { changeMulti } from "./cubeOps.js";
+import { createLinkView } from "./linkView.js";
 
 const LISTS = ["cards", "hypers", "gr"];
 
+// needs：その台帳のリストを使うキューブだけに出す表示
+const VIEWS = [
+  { key: "all", label: "すべて" },
+  { key: "cards", label: "メインデッキ" },
+  { key: "hypers", label: "超次元", needs: "hypers" },
+  { key: "gr", label: "GR", needs: "gr" },
+  { key: "links", label: "対応", needs: "hypers" },
+  { key: "charts", label: "分布" },
+];
+
 export function mount(el, ctx) {
   const cubeId = ctx.route.param;
+  const nav = h("nav", { class: "segmented view-switch", "aria-label": "表示の切り替え" });
   const head = h("div");
-  const orphans = h("div");
+  const linkView = createLinkView();
+  const linkWrap = h("section", { class: "cube-list" },
+    h("div", { class: "cube-list-head" }, h("h2", { class: "list-heading" }, "超次元の対応")), linkView.el);
   const parts = {};
-  // 3 つのリストの入れ物（使わないリストは、update で隠す）
+  // 3 つのリストの入れ物（使わない・今の表示に要らないリストは、update で隠す）
   for (const ledger of LISTS) {
     const titleEl = h("h2", { class: "list-heading" });
     const addHost = h("span", { class: "list-add" });
@@ -25,7 +40,7 @@ export function mount(el, ctx) {
       list: cardList.mount(listHost, ctx, { ledger, cubeId, switcher: false, controls: ledger === "cards" }),
     };
   }
-  el.append(head, ...LISTS.map((l) => parts[l].wrap), orphans);
+  el.append(nav, head, ...LISTS.map((l) => parts[l].wrap), linkWrap);
 
   function update(next) {
     const data = next.state.data;
@@ -34,12 +49,24 @@ export function mount(el, ctx) {
       location.hash = "#/search";
       return;
     }
-    head.replaceChildren(headPanel(cubeId, data, cube, next.admin));
+
+    // 表示：URL の指定 → 端末が覚えている表示 → すべて
+    const available = VIEWS.filter((v) => !v.needs || cubeUses(cube, v.needs));
+    const fromUrl = next.route.sub;
+    let view = fromUrl ?? loadPref("cubeView", "all");
+    if (!available.some((v) => v.key === view)) view = "all";
+    if (fromUrl && available.some((v) => v.key === fromUrl)) savePref("cubeView", fromUrl);
+    const show = (key) => view === "all" || view === key;
+    nav.replaceChildren(...available.map((v) => h("a", {
+      href: `#/cube/${cubeId}/${v.key}`,
+      "aria-current": v.key === view ? "page" : null,
+    }, v.label)));
+
+    head.replaceChildren(headPanel(cubeId, data, cube, next.admin, show("charts")));
     for (const ledger of LISTS) {
       const { wrap, titleEl, addHost, list } = parts[ledger];
-      const used = cubeUses(cube, ledger);
-      wrap.hidden = !used;
-      if (!used) continue;
+      wrap.hidden = !cubeUses(cube, ledger) || !show(ledger);
+      if (wrap.hidden) continue;
       const entries = cube[ledger] ?? [];
       const copies = entries.reduce((n, e) => n + (e.count ?? 1), 0);
       titleEl.textContent = `${LEDGER_LABELS[ledger]}（${entries.length} 種類・${copies} 枚）`;
@@ -48,14 +75,16 @@ export function mount(el, ctx) {
         : "");
       list.update(next);
     }
-    orphans.replaceChildren(...orphanSection(cubeId, data, cube, next.admin));
+    // 超次元の対応：超次元を使うキューブだけ
+    linkWrap.hidden = cube.usesHyper === false || !show("links");
+    if (!linkWrap.hidden) linkView.update({ data, cubeId, admin: next.admin });
   }
 
   update(ctx);
   return { update };
 }
 
-function headPanel(cubeId, data, cube, admin) {
+function headPanel(cubeId, data, cube, admin, charts) {
   const sum = cubeSummary(data, cubeId);
   const problems = cubeProblems(data, cubeId);
 
@@ -81,24 +110,11 @@ function headPanel(cubeId, data, cube, admin) {
       ? h("p", { class: "warn-text" },
         `⚠ 同名カードは 1 枚だけのモードなのに、複数枚・同名が複数入っているカードがあります（${new Set(problems.map((p) => `${p.ledger}:${p.no}`)).size} 種類）。`)
       : null,
-    h("h3", { class: "sub-title" }, "メインデッキの文明（延べ）"),
-    stackedBar(civSegments, { label: `${cube.name}の文明の延べ枚数` }),
-    h("h3", { class: "sub-title" }, "メインデッキのコスト"),
-    barChart(costBins, { label: `${cube.name}のコストごとの枚数` }),
-    h("p", { class: "muted" }, "グラフはメインデッキの集計です。多色は各文明に数え、コスト2も 1 つとして数えます。"));
-}
-
-// 付属先がこのキューブのメインデッキに無い、または超次元がこのキューブに入っていない関連
-function orphanSection(cubeId, data, cube, admin) {
-  if (cube.usesHyper === false) return [];
-  const orphans = cubeLinks(data, cubeId).filter((l) => !l.registered || !l.hyperRegistered);
-  if (!orphans.length) return [];
-  return [section(`未登録の関連（${orphans.length} 件）`,
-    h("p", { class: "muted" }, "付属先のカードか超次元がこのキューブに入っていない関連です。外すか、入れ直してください。"),
-    h("ul", { class: "cube-rows" }, orphans.map((l) => h("li", { class: "cube-row" },
-      h("span", null, `${l.parentCard.name} → ${l.hyperItem.name}`),
-      !l.registered ? h("span", { class: "minus" }, "付属先がメインデッキに無い") : null,
-      !l.hyperRegistered ? h("span", { class: "minus" }, "超次元がキューブに無い") : null,
-      l.memo ? h("span", { class: "muted" }, `メモ：${l.memo}`) : null,
-      admin ? h("button", { type: "button", class: "sub small", onclick: () => removeHyperLink(cubeId, l, l.hyperItem.name) }, "外す") : null))))];
+    charts ? [
+      h("h3", { class: "sub-title" }, "メインデッキの文明（延べ）"),
+      stackedBar(civSegments, { label: `${cube.name}の文明の延べ枚数` }),
+      h("h3", { class: "sub-title" }, "メインデッキのコスト"),
+      barChart(costBins, { label: `${cube.name}のコストごとの枚数` }),
+      h("p", { class: "muted" }, "グラフはメインデッキの集計です。多色は各文明に数え、コスト2も 1 つとして数えます。"),
+    ] : null);
 }

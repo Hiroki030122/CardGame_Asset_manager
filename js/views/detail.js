@@ -79,7 +79,7 @@ function cubeSection(card, data, admin, ledger) {
     : h("p", { class: "muted" }, `${LEDGER_LABELS[ledger]}を使うキューブがありません。`));
 }
 
-// メインデッキ：キューブごとの超次元の関連（見るだけ。付け外しはキューブ画面）
+// メインデッキ：キューブごとの超次元の対応（見るだけ。付け外しはキューブ画面）
 function linkSection(card, data) {
   const rows = [];
   for (const [id, cube] of Object.entries(data.cubes)) {
@@ -117,8 +117,8 @@ function usageSection(hyper, data) {
 function placeText(place, cubes) {
   const name = cubes[place.cube]?.name ?? place.cube;
   if (place.type === "card") return `${name}に入っています`;
-  if (place.type === "parent") return `${name}の超次元の関連で、付属先になっています（${place.count} 件）`;
-  return `${name}の超次元の関連で使われています（${place.count} 件）`;
+  if (place.type === "parent") return `${name}の超次元の対応で、付属先になっています（${place.count} 件）`;
+  return `${name}の超次元の対応で使われています（${place.count} 件）`;
 }
 
 async function onDelete(ledger, no) {

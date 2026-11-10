@@ -39,7 +39,7 @@ export function addCard(cubeId, ledger, item) {
   return true;
 }
 
-// 1 枚外す。最後の 1 枚（または all）のときは確認する。超次元は、外すと関連の数が枚数を超えるなら外せない
+// 1 枚外す。最後の 1 枚（または all）のときは確認する。超次元は、外すと対応の数が枚数を超えるなら外せない
 export async function removeCard(cubeId, ledger, item, { all = false } = {}) {
   const data = getState().data;
   const cube = data?.cubes[cubeId];
@@ -48,7 +48,7 @@ export async function removeCard(cubeId, ledger, item, { all = false } = {}) {
   if (ledger === "hypers") {
     const check = hyperRemoveCheck(data, cubeId, item.no, all ? 0 : entry.count - 1);
     if (!check.ok) {
-      toast(`「${item.name}」には関連が ${check.links} 件付いています。先に関連を外してください`, "error");
+      toast(`「${item.name}」には対応が ${check.links} 件付いています。先に対応を外してください`, "error");
       return;
     }
   }
@@ -164,9 +164,9 @@ export function cubeNames(item, data, ledger = "cards") {
   return parts;
 }
 
-// ---- 超次元の関連（キューブの中で、メインデッキのカードと、キューブに入れた超次元を結びつける） ----
+// ---- 超次元の対応（キューブの中で、メインデッキのカードと、キューブに入れた超次元を結びつける） ----
 
-// 関連を 1 つ付ける。付けたら true
+// 対応を 1 つ付ける。付けたら true
 export function addHyperLink(cubeId, parentNo, hyper, memo = "") {
   const data = getState().data;
   if (!data?.cubes[cubeId]) return false;
@@ -175,7 +175,7 @@ export function addHyperLink(cubeId, parentNo, hyper, memo = "") {
     const reasons = {
       parent: "付属先のカードがこのキューブのメインデッキに入っていません",
       hyper: `「${hyper.name}」がこのキューブに入っていません。先に超次元を入れてください`,
-      full: `「${hyper.name}」はこのキューブに ${check.count} 枚で、関連がすでに ${check.links} 件あります。超次元を増やすか、関連を外してください`,
+      full: `「${hyper.name}」はこのキューブに ${check.count} 枚で、対応がすでに ${check.links} 件あります。超次元を増やすか、対応を外してください`,
     };
     toast(reasons[check.reason] ?? "付けられません", "error");
     return false;
@@ -184,12 +184,12 @@ export function addHyperLink(cubeId, parentNo, hyper, memo = "") {
   return true;
 }
 
-// 関連を 1 つ外す。メモがあるときだけ確認する
+// 対応を 1 つ外す。メモがあるときだけ確認する
 export async function removeHyperLink(cubeId, link, hyperName) {
   if (link.memo) {
     const ok = await confirmDialog({
-      title: "関連を外しますか？",
-      message: `「${hyperName}」の関連を外します。メモ「${link.memo}」も消えます。`,
+      title: "対応を外しますか？",
+      message: `「${hyperName}」の対応を外します。メモ「${link.memo}」も消えます。`,
       okText: "外す",
       danger: true,
     });
@@ -217,7 +217,7 @@ export function hyperLinkChips(data, cubeId, card, admin) {
   }));
 }
 
-// 超次元のリストの行に出す「呼んでいる付属先」。関連の数／入れた枚数と、付属先の名前
+// 超次元のリストの行に出す「呼んでいる付属先」。対応の数／入れた枚数と、付属先の名前
 export function parentChips(data, cubeId, hyper, admin) {
   const cube = data.cubes[cubeId];
   const links = cube.hyperLinks.filter((l) => l.hyper === hyper.no);
@@ -229,11 +229,11 @@ export function parentChips(data, cubeId, hyper, admin) {
     const label = `${name}${list.length > 1 ? ` ×${list.length}` : ""}`;
     const chip = h("span", { class: "chip link-chip" }, label);
     if (admin) {
-      const minus = h("button", { type: "button", class: "chip-x", "aria-label": `${label}との関連を 1 つ外す` }, "−");
+      const minus = h("button", { type: "button", class: "chip-x", "aria-label": `${label}との対応を 1 つ外す` }, "−");
       minus.addEventListener("click", () => removeHyperLink(cubeId, list[list.length - 1], hyper.name));
       chip.append(minus);
     }
     return chip;
   });
-  return h("div", { class: "tile-row" }, h("span", { class: links.length > count ? "minus" : "muted" }, `関連 ${links.length}/${count}`), chips);
+  return h("div", { class: "tile-row" }, h("span", { class: links.length > count ? "minus" : "muted" }, `対応 ${links.length}/${count}`), chips);
 }

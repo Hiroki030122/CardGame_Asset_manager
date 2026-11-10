@@ -40,13 +40,13 @@ export function setViewMode(value) {
 
 // 表の列は台帳ごとに覚える。初めは数字を中心に、区分・属性・役割・メモなどは「表の列」で出せる
 const DEFAULT_HIDDEN = {
-  cards: ["kind", "attrs", "roles", "memo", "cubeMemo"],
+  cards: ["attrs", "roles", "memo", "cubeMemo"],
   hypers: ["attrs", "roles", "back", "memo", "cubeMemo"],
   gr: ["roles", "memo", "cubeMemo"],
 };
 const hiddenByLedger = {};
 function hiddenColsFor(ledger) {
-  hiddenByLedger[ledger] ??= new Set(loadPref(`searchHiddenColumns3.${ledger}`, DEFAULT_HIDDEN[ledger]));
+  hiddenByLedger[ledger] ??= new Set(loadPref(`searchHiddenColumns4.${ledger}`, DEFAULT_HIDDEN[ledger]));
   return hiddenByLedger[ledger];
 }
 
@@ -192,7 +192,7 @@ export function mount(el, ctx, {
       box.addEventListener("change", () => {
         if (box.checked) hiddenCols.delete(c.key);
         else hiddenCols.add(c.key);
-        savePref(`searchHiddenColumns3.${ledger}`, [...hiddenCols]);
+        savePref(`searchHiddenColumns4.${ledger}`, [...hiddenCols]);
         renderResults();
       });
       return h("label", { class: "check" }, box, c.label);

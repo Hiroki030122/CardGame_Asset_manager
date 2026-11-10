@@ -192,7 +192,7 @@ export function setCubeUsesGR(cubeId, usesGR) {
   return track(updateDoc(cubeRef(cubeId), { usesGR }));
 }
 
-// 超次元を使うかどうか。false にしても関連のデータは消さずに残す
+// 超次元を使うかどうか。false にしても対応のデータは消さずに残す
 export function setCubeUsesHyper(cubeId, usesHyper) {
   return track(updateDoc(cubeRef(cubeId), { usesHyper }));
 }
@@ -225,7 +225,7 @@ export function setCubeOrder(ids) {
   return track(batch.commit());
 }
 
-// 削除。中のカードの出し入れと、超次元の関連も一緒に消える。残りのキューブの order もそろえ直す。
+// 削除。中のカードの出し入れと、超次元の対応も一緒に消える。残りのキューブの order もそろえ直す。
 export function deleteCube(cubeId, remainingIds) {
   const batch = writeBatch(db);
   batch.delete(cubeRef(cubeId));
@@ -233,9 +233,9 @@ export function deleteCube(cubeId, remainingIds) {
   return track(batch.commit());
 }
 
-// ---- 超次元の関連（キューブごと。1 つの関連＝超次元 1 枚。同じ組み合わせを何回付けてもよい） ----
+// ---- 超次元の対応（キューブごと。1 つの対応＝超次元 1 枚。同じ組み合わせを何回付けてもよい） ----
 
-// 付けてよいか（付属先・超次元がキューブに入っている、入れた枚数まで）は画面側で確かめてから呼ぶ（calc.js の linkAddCheck）。付けた関連の ID を返す
+// 付けてよいか（付属先・超次元がキューブに入っている、入れた枚数まで）は画面側で確かめてから呼ぶ（calc.js の linkAddCheck）。付けた対応の ID を返す
 export function addLink(cubeId, parentNo, hyperNo, memo = "") {
   const id = globalThis.crypto.randomUUID();
   return track(updateDoc(cubeRef(cubeId), { [`links.${id}`]: { parent: parentNo, hyper: hyperNo, memo } })).then(() => id);
