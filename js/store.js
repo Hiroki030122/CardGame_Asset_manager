@@ -3,20 +3,41 @@ import { db } from "./firebase.js";
 import { DEFAULT_GAME_ID } from "../app-config.js";
 import { doc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
-export const SCHEMA_VERSION = 1;
+// 2：各カードに proxy（プロキシか）を追加。1 のデータは proxy: false として読む。
+export const SCHEMA_VERSION = 2;
 export const CHUNK_SIZE = 500;
 export const CHUNK_WARN_BYTES = 700 * 1024;
+
+const copy = (v) => (Array.isArray(v) ? [...v] : v);
 
 export const LEDGERS = ["cards", "hypers", "gr"];
 export const LEDGER_LABELS = { cards: "所持カード", hypers: "超次元", gr: "GR" };
 export const ITEM_FIELDS = {
-  cards: ["name", "cost", "cost2", "kind", "civs", "attrs", "roles", "memo", "owned"],
-  hypers: ["name", "cost", "kind", "civs", "back", "memo", "owned"],
-  gr: ["name", "cost", "civs", "attrs", "roles", "memo", "owned"],
+  cards: ["name", "proxy", "cost", "cost2", "kind", "civs", "attrs", "roles", "memo", "owned"],
+  hypers: ["name", "proxy", "cost", "kind", "civs", "back", "memo", "owned"],
+  gr: ["name", "proxy", "cost", "civs", "attrs", "roles", "memo", "owned"],
 };
 const ITEM_DEFAULTS = {
-  name: "", cost: null, cost2: null, kind: "", civs: [], attrs: [], roles: [], back: "", memo: "", owned: 0,
+  name: "", proxy: false, cost: null, cost2: null, kind: "", civs: [], attrs: [], roles: [], back: "", memo: "", owned: 0,
 };
+
+export function emptyItem(ledger) {
+  const item = {};
+  for (const f of ITEM_FIELDS[ledger]) item[f] = copy(ITEM_DEFAULTS[f]);
+  return item;
+}
+
+// 同じ名前かの判定用。全角／半角の違い、前後の空白、続いた空白を無視する。
+export function nameKey(name) {
+  return String(name ?? "").normalize("NFKC").trim().replace(/\s+/g, " ");
+}
+
+// 本物とプロキシは別のカードとして扱う
+export function findByName(items, name, proxy, exceptNo = null) {
+  const key = nameKey(name);
+  if (!key) return null;
+  return items.find((it) => it.no !== exceptNo && !!it.proxy === !!proxy && nameKey(it.name) === key) ?? null;
+}
 
 export const DEFAULT_SETTINGS = {
   civs: ["火", "自然", "水", "光", "闇"],
@@ -50,8 +71,6 @@ function resolveGameId(search) {
 }
 
 // ---- 変換（純粋関数） ----
-
-const copy = (v) => (Array.isArray(v) ? [...v] : v);
 
 // Firestore のドキュメント → 論理形式
 export function logicalFromDocs(game, ledgerDocs, cubeDocs) {
@@ -243,10 +262,16 @@ export function clearWriteError() {
   emit("status");
 }
 
+export function isOnline() {
+  return navigator.onLine;
+}
+
 export function errorMessage(err) {
   switch (err?.code) {
     case "permission-denied": return "このアカウントには編集権限がありません";
     case "unavailable": return "サーバーにつながりません";
+    case "offline": return "オフラインのため登録できません。つながってから登録してください";
+    case "not-found": return "データが見つかりません";
     default: return err?.code || err?.message || String(err);
   }
 }

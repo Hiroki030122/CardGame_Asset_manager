@@ -101,8 +101,65 @@ export function civChips(civs) {
   return h("span", { class: "chips" }, civs.map((c) => h("span", { class: `chip civ ${CIV_CLASS[c] ?? ""}` }, c)));
 }
 
-export function chips(values) {
-  return h("span", { class: "chips" }, values.map((v) => h("span", { class: "chip" }, v)));
+export function chips(values, extraClass = "") {
+  return h("span", { class: "chips" }, values.map((v) => h("span", { class: `chip ${extraClass}` }, v)));
+}
+
+export function proxyBadge() {
+  return h("span", { class: "badge proxy" }, "プロキシ");
+}
+
+// タップで ON/OFF するチップ。selected（Set）を直接書き換える。
+export function toggleChips(options, selected, onChange, { civ = false } = {}) {
+  const cls = (opt) => {
+    const on = selected.has(opt);
+    return `chip-btn${on ? " on" : ""}${civ && on ? ` ${CIV_CLASS[opt] ?? ""}` : ""}`;
+  };
+  return h("div", { class: "chips toggle" }, options.map((opt) => {
+    const btn = h("button", { type: "button", class: cls(opt), "aria-pressed": String(selected.has(opt)) }, opt);
+    btn.addEventListener("click", () => {
+      if (selected.has(opt)) selected.delete(opt);
+      else selected.add(opt);
+      btn.className = cls(opt);
+      btn.setAttribute("aria-pressed", String(selected.has(opt)));
+      onChange?.(selected);
+    });
+    return btn;
+  }));
+}
+
+// 入力用のモーダル。content は <form class="modal-form"> など。
+export function openModal({ title, content, onClose }) {
+  const closeBtn = h("button", { type: "button", class: "icon-btn", "aria-label": "閉じる" }, "×");
+  const dialog = h("dialog", { class: "modal" },
+    h("div", { class: "modal-head" }, h("h2", null, title), closeBtn),
+    content);
+  closeBtn.addEventListener("click", () => dialog.close());
+  dialog.addEventListener("close", () => {
+    dialog.remove();
+    onClose?.();
+  });
+  document.body.append(dialog);
+  dialog.showModal();
+  return { dialog, close: () => dialog.close() };
+}
+
+// 端末に記憶する設定（表示の切り替えなど）。使えない環境では既定値で動く。
+export function loadPref(key, fallback) {
+  try {
+    const v = localStorage.getItem(`cgam.${key}`);
+    return v == null ? fallback : JSON.parse(v);
+  } catch {
+    return fallback;
+  }
+}
+
+export function savePref(key, value) {
+  try {
+    localStorage.setItem(`cgam.${key}`, JSON.stringify(value));
+  } catch {
+    // 保存できなくても動作は続ける
+  }
 }
 
 export function costText(item) {

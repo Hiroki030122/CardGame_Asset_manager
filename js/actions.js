@@ -1,11 +1,12 @@
 // Firestore への書き込み。データの置き方は SPEC.md 3-2。
 import { db } from "./firebase.js";
 import {
-  SCHEMA_VERSION, LEDGERS, DEFAULT_SETTINGS, DEFAULT_CUBES,
-  gameRef, docsFromLogical, getRawDocs, setWriteError, clearWriteError,
+  SCHEMA_VERSION, CHUNK_SIZE, LEDGERS, ITEM_FIELDS, DEFAULT_SETTINGS, DEFAULT_CUBES,
+  gameRef, chunkId, emptyItem, isOnline, docsFromLogical, getRawDocs, setWriteError, clearWriteError,
 } from "./store.js";
+import { firstFreeNo } from "./calc.js";
 import {
-  doc, writeBatch, runTransaction, serverTimestamp,
+  doc, writeBatch, runTransaction, updateDoc, serverTimestamp, increment, deleteField,
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 const DEFAULT_GAME_NAME = "デュエル・マスターズ";
@@ -17,6 +18,64 @@ function track(promise) {
     (e) => { setWriteError(e); throw e; },
   );
 }
+
+const chunkRef = (ledger, no) => doc(gameRef, "ledgers", chunkId(ledger, no));
+
+const appError = (code, message) => Object.assign(new Error(message), { code });
+
+// ---- カード（所持カード・超次元・GR 共通） ----
+
+// 新規登録。空いている一番小さい番号を、トランザクションの中でチャンクを読んで探す。
+// オンラインのときだけ使える。振った番号を返す。
+export function registerItem(ledger, values) {
+  if (!isOnline()) return Promise.reject(appError("offline", "オフラインです"));
+  const item = emptyItem(ledger);
+  for (const f of ITEM_FIELDS[ledger]) if (values[f] !== undefined) item[f] = values[f];
+
+  return runTransaction(db, async (tx) => {
+    const snap = await tx.get(gameRef);
+    if (!snap.exists()) throw appError("not-found", "データがありません");
+    const counter = snap.data().counters?.[ledger] ?? 0;
+
+    let no = counter + 1;
+    for (let k = 0; k <= Math.floor(counter / CHUNK_SIZE); k++) {
+      const from = k * CHUNK_SIZE + 1;
+      const chunk = await tx.get(doc(gameRef, "ledgers", `${ledger}_${k}`));
+      const free = firstFreeNo(chunk.exists() ? chunk.data().items ?? {} : {}, from, from + CHUNK_SIZE - 1);
+      if (free !== null) { no = free; break; }
+    }
+
+    const now = serverTimestamp();
+    tx.update(gameRef, { [`counters.${ledger}`]: Math.max(counter, no), schemaVersion: SCHEMA_VERSION, updatedAt: now });
+    tx.set(chunkRef(ledger, no), { items: { [no]: { ...item, createdAt: now, updatedAt: now } } }, { merge: true });
+    return no;
+  });
+}
+
+// 枚数の増減。0 未満になる操作は何もしない。
+export function changeOwned(ledger, item, delta) {
+  if (item.owned + delta < 0) return Promise.resolve(false);
+  return track(updateDoc(chunkRef(ledger, item.no), {
+    [`items.${item.no}.owned`]: increment(delta),
+    [`items.${item.no}.updatedAt`]: serverTimestamp(),
+  })).then(() => true);
+}
+
+// 変わった項目だけを書き換える
+export function updateItem(ledger, no, changes) {
+  const patch = { [`items.${no}.updatedAt`]: serverTimestamp() };
+  for (const [f, v] of Object.entries(changes)) {
+    if (ITEM_FIELDS[ledger].includes(f)) patch[`items.${no}.${f}`] = v;
+  }
+  return track(updateDoc(chunkRef(ledger, no), patch));
+}
+
+// 消せるかどうかは画面側で確かめてから呼ぶ（calc.js の canDelete）。消した番号は、次の新規登録で使われる。
+export function deleteItem(ledger, no) {
+  return track(updateDoc(chunkRef(ledger, no), { [`items.${no}`]: deleteField() }));
+}
+
+// ---- 初期化・置き換え ----
 
 // 3-4 初期化。サーバーで「まだ無い」ことを確かめてから作るので、オンラインのときだけ使える。
 // 作ったら true、すでにあったら false。

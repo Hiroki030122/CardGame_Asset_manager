@@ -5,6 +5,7 @@ import { createInitialGame } from "./actions.js";
 import { importJsonReplace } from "./excel.js";
 import { h, section, toast, copyText } from "./ui.js";
 import * as searchView from "./views/search.js";
+import * as detailView from "./views/detail.js";
 import * as settingsView from "./views/settings.js";
 
 const TABS = [
@@ -47,7 +48,7 @@ function cubeName(id, data) {
 function pageTitle(r, data) {
   switch (r.name) {
     case "cube": return cubeName(r.param, data);
-    case "card": return `カード No.${r.param ?? ""}`;
+    case "card": return "カードの詳細";
     case "hyper": return "超次元";
     case "stats": return "集計";
     case "settings": return "設定";
@@ -93,31 +94,57 @@ function renderStatus() {
 
 // ---- 画面 ----
 
+// 入力欄のある画面（mount を持つもの）は、同じ画面のあいだは作り直さずに update で中身だけ更新する
+let mounted = null;
+
 function renderView() {
   const st = store.getState();
-  const ctx = { state: st, user, admin: isAdmin(user), route };
+  const admin = isAdmin(user);
+  const ctx = { state: st, user, admin, route };
   const title = pageTitle(route, st.data);
   document.title = `${title}｜カード管理`;
 
-  let body;
-  if (route.name === "settings") body = settingsView.render(ctx);
-  else if (st.readError) body = section("データを読み込めませんでした", h("p", null, store.errorMessage(st.readError)));
-  else if (st.loading) body = h("p", { class: "muted" }, "読み込み中…");
-  else if (!st.exists) body = emptyState(ctx);
-  else body = content(ctx);
+  const phase = route.name === "settings" ? "settings"
+    : st.readError ? "error"
+    : st.loading ? "loading"
+    : !st.exists ? "empty"
+    : "content";
+  const key = `${route.name}/${route.param}|${phase}|${admin}`;
+  if (mounted?.key === key && mounted.update) {
+    mounted.titleEl.textContent = title;
+    mounted.update(ctx);
+    return;
+  }
 
+  const titleEl = h("h1", null, title);
+  const body = h("div", { class: "view-body" });
   $("view").replaceChildren(
     h("div", { class: "page-head" },
-      h("h1", null, title),
+      titleEl,
       h("button", { class: "sub small", onclick: () => copyText(location.href) }, "このページの URL をコピー")),
-    ...[body].flat());
+    body);
+
+  let update = null;
+  if (phase === "content" && route.name === "search") update = searchView.mount(body, ctx).update;
+  else body.append(...[staticBody(phase, ctx)].flat().filter(Boolean));
+  mounted = { key, titleEl, update };
+}
+
+function staticBody(phase, ctx) {
+  switch (phase) {
+    case "settings": return settingsView.render(ctx);
+    case "error": return section("データを読み込めませんでした", h("p", null, store.errorMessage(ctx.state.readError)));
+    case "loading": return h("p", { class: "muted" }, "読み込み中…");
+    case "empty": return emptyState(ctx);
+    default: return content(ctx);
+  }
 }
 
 function content(ctx) {
   const { name, param } = ctx.route;
-  if (name === "search") return searchView.render(ctx);
+  if (name === "card") return detailView.render(ctx);
   if (name === "cube" && !ctx.state.data.cubes[param]) return h("p", { class: "muted" }, "このキューブはありません。");
-  const stage = { card: 2, cube: 3, hyper: 4, stats: 5 }[name];
+  const stage = { cube: 3, hyper: 4, stats: 5 }[name];
   return h("p", { class: "muted" }, `この画面は段階 ${stage} で作ります。`);
 }
 

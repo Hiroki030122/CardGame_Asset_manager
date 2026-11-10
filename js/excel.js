@@ -62,6 +62,10 @@ function normalizeField(field, v) {
       const list = strList(v);
       return list ? { value: list } : { error: `${field} は文字の配列にしてください` };
     }
+    case "proxy":
+      if (v == null) return { value: false };
+      if (typeof v !== "boolean") return { error: "proxy は true か false にしてください" };
+      return { value: v };
     case "owned":
       if (v == null) return { value: 0 };
       if (!isNonNegInt(v)) return { error: "owned（枚数）は 0 以上の整数にしてください" };
@@ -80,7 +84,8 @@ export function parseLogicalJson(text) {
     return { errors: ["JSON として読めませんでした。ファイルを確かめてください。"] };
   }
   if (!isObject(raw)) return { errors: ["中身の形が違います（{ … } で始まる JSON が必要です）。"] };
-  if (raw.schemaVersion !== SCHEMA_VERSION) {
+  // 1 には proxy が無いので、各カードを本物（proxy: false）として読む
+  if (![1, SCHEMA_VERSION].includes(raw.schemaVersion)) {
     return { errors: [`この形式（schemaVersion: ${raw.schemaVersion ?? "なし"}）には対応していません。`] };
   }
 
