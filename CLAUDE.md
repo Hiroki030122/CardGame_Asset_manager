@@ -12,7 +12,7 @@
 - ビルドツールは使わない。素の HTML / CSS / JavaScript（ES Modules）。npm パッケージを追加しない。
 - 外部ライブラリは Firebase JS SDK（gstatic から ES Modules）と SheetJS（CDN）だけ。どちらも版を固定し、全ファイルで同じ版を使う。グラフはライブラリを使わず SVG／CSS で描く。
 - `firebase-config.js` は書き換えない。
-- 計算（使用枚数・残り・集計）は `js/calc.js` に純粋関数としてまとめる。画面のコードに計算を書き散らさない。calc.js を変えたら `node tests/calc.test.mjs` を通す。
+- 計算（使用枚数・残り・集計）は `js/calc.js` に純粋関数としてまとめる。画面のコードに計算を書き散らさない。calc.js を変えたら `node tests/calc.test.mjs` を通す（この PC には Node が無いので、`tests/calc.test.html` をブラウザで開いて確かめる）。
 - Firestore への書き込みは `js/actions.js` に集める。データの置き方（SPEC.md 3-2）に従い、フィールド単位で更新する（チャンクのドキュメントを丸ごと上書きしない）。例外は JSON の「置き換え」だけで、`writeBatch` で丸ごと書き直し、直前に今のデータを JSON に自動で書き出す（SPEC.md 3-2）。
 - データ形式を変えるときは `schemaVersion` を上げ、古い形式を読み込んで変換する処理を入れる。
 - カード名・メモなどの文字列は `textContent` などで入れる。`innerHTML` に生の文字列を入れない。
