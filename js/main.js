@@ -9,6 +9,7 @@ import * as cardListView from "./views/cardList.js";
 import * as detailView from "./views/detail.js";
 import * as cubeView from "./views/cube.js";
 import * as hyperView from "./views/hyper.js";
+import * as statsView from "./views/stats.js";
 import * as settingsView from "./views/settings.js";
 
 // タブ：検索 → カード一覧 → キューブ（データにある数だけ。order 順）→ 超次元 → 集計 → 設定
@@ -143,6 +144,7 @@ function renderView() {
   if (phase === "content" && route.name === "search") update = searchView.mount(body, ctx).update;
   else if (phase === "content" && route.name === "list") update = cardListView.mount(body, ctx, { ledger: LIST_LEDGER[route.param] ?? "cards" }).update;
   else if (phase === "content" && route.name === "hyper" && !route.param) update = hyperView.mount(body, ctx).update;
+  else if (phase === "content" && route.name === "stats") update = statsView.mount(body, ctx).update;
   else if (phase === "content" && route.name === "cube" && st.data.cubes[route.param]) update = cubeView.mount(body, ctx).update;
   else body.append(...[staticBody(phase, ctx)].flat().filter(Boolean));
   mounted = { key, titleEl, update };
@@ -164,7 +166,7 @@ function content(ctx) {
   if (name === "gr") return detailView.render(ctx, "gr");
   if (name === "hyper") return detailView.render(ctx, "hypers");
   if (name === "cube" && !ctx.state.data.cubes[param]) return h("p", { class: "muted" }, "このキューブはありません。");
-  return h("p", { class: "muted" }, "この画面は段階 5 で作ります。");
+  return h("p", { class: "muted" }, "この画面は表示できません。");
 }
 
 function emptyState({ admin }) {

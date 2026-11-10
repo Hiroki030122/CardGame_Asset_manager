@@ -1,5 +1,5 @@
 // 使用枚数・残り・集計の計算（SPEC.md 4 章）。画面や Firebase に依存しない純粋関数。
-import { nameKey, cubeUses } from "./model.js";
+import { nameKey, cubeUses, KIND_SETTING } from "./model.js";
 
 // キューブごとの「番号 → そのキューブに入っている枚数」 { A: Map, B: Map, … }。ledger は cards／hypers／gr（キューブの中のリスト名と同じ）。
 // 超次元・GR を使わない設定のキューブは、数えない（空にする）。
@@ -301,4 +301,105 @@ export function hasSearchCondition(f) {
     f.q.trim() || f.civs.size || f.kind || f.attr || f.role
     || f.costMin !== "" || f.costMax !== "" || f.proxy || f.minus
   );
+}
+
+// ---- 集計（SPEC.md 4 章・5-7）----
+
+export const STAT_NONE_KIND = "区分なし・一覧にない";
+
+// 集計の対象のカードと重み [{ card, count }]。target＝"all"（台帳に登録されている全部。1 種類を 1 として数える）か、キューブの ID（入れた枚数ぶん数える）。
+// プロキシは本物と区別せず、そのまま数える。
+export function statsEntries(data, target, ledger = "cards") {
+  if (target === "all") return (data[ledger] ?? []).map((card) => ({ card, count: 1 }));
+  const cube = data.cubes[target];
+  if (!cube || !cubeUses(cube, ledger)) return [];
+  return cubeEntries(data, target, ledger);
+}
+
+// 行・列の見出しごとの枚数の表。rowsOf／colsOf＝カード → 見出しの配列。行・列の合計は「そのカードの枚数」で数える（複数持ちを二重に数えない）。
+function crossTable(entries, rowKeys, colKeys, rowsOf, colsOf) {
+  const cells = rowKeys.map(() => colKeys.map(() => 0));
+  const rowTotals = rowKeys.map(() => 0);
+  const colTotals = colKeys.map(() => 0);
+  let total = 0;
+  for (const { card, count } of entries) {
+    const rs = rowsOf(card).map((k) => rowKeys.indexOf(k)).filter((i) => i >= 0);
+    const cs = colsOf(card).map((k) => colKeys.indexOf(k)).filter((i) => i >= 0);
+    total += count;
+    for (const r of rs) {
+      rowTotals[r] += count;
+      for (const c of cs) cells[r][c] += count;
+    }
+    for (const c of cs) colTotals[c] += count;
+  }
+  return { rows: rowKeys, cols: colKeys, cells, rowTotals, colTotals, total };
+}
+
+// 項目ごとの枚数 [{ name, value }]（複数持ちは各項目に数える）
+function countBy(entries, names, valuesOf) {
+  return names.map((name) => ({ name, value: entries.reduce((n, e) => n + (valuesOf(e.card).includes(name) ? e.count : 0), 0) }));
+}
+
+// 1 つの対象の集計。ledger は cards／hypers／gr。
+export function statsSummary(data, target, ledger = "cards") {
+  const entries = statsEntries(data, target, ledger);
+  const settings = data.settings;
+  const sum = (pred) => entries.reduce((n, e) => n + (pred(e.card) ? e.count : 0), 0);
+  const kindNames = settings[KIND_SETTING[ledger]] ?? [];
+  const facesOf = (card) => [...new Set([card.kind, card.kind2, card.kind3].filter(Boolean))];
+  const byKind = countBy(entries, kindNames, facesOf);
+  const noKind = sum((c) => !facesOf(c).some((k) => kindNames.includes(k)));
+
+  const bins = costHistogram(entries);
+  const costs = { low: 0, mid: 0, high: 0, total: 0 };
+  for (const { card, count } of entries) {
+    for (const c of [card.cost, card.cost2]) {
+      if (c == null) continue;
+      costs.total += count;
+      costs[c <= 1 ? "low" : c >= 10 ? "high" : "mid"] += count;
+    }
+  }
+
+  const civs = settings.civs;
+  const roleOf = (c) => (c.roles?.length ? c.roles : ["役割なし"]);
+  const attrOf = (c) => (c.attrs?.length ? c.attrs : ["属性なし"]);
+  return {
+    kinds: entries.length,
+    copies: entries.reduce((n, e) => n + e.count, 0),
+    single: sum((c) => c.civs.length === 1),
+    multi: sum((c) => c.civs.length > 1),
+    zero: sum((c) => c.civs.length === 0),
+    cost2: sum((c) => c.cost2 != null),
+    byKind, noKind,
+    civ: civTotals(entries, civs),
+    cost: { bins, ...costs },
+    byAttr: countBy(entries, settings.attributes ?? [], (c) => c.attrs ?? []),
+    byRole: countBy(entries, settings.roles ?? [], (c) => c.roles ?? []),
+    roleAttr: crossTable(entries, [...(settings.roles ?? []), "役割なし"], [...(settings.attributes ?? []), "属性なし"], roleOf, attrOf),
+    roleCiv: crossTable(entries, [...(settings.roles ?? []), "役割なし"], [...civs, "多色", "ゼロ文明"], roleOf,
+      (c) => (c.civs.length ? [...c.civs, ...(c.civs.length > 1 ? ["多色"] : [])] : ["ゼロ文明"])),
+  };
+}
+
+// 所持と使用。perCube＝キューブごとの使用枚数、usedTotal＝その合計、short＝足りない種類数、unused＝どのキューブでも使っていない種類数。
+export function stockSummary(data, ledger = "cards") {
+  const items = data[ledger] ?? [];
+  const index = cubeIndex(data.cubes, ledger);
+  const perCube = {};
+  for (const [id, counts] of Object.entries(index)) perCube[id] = [...counts.values()].reduce((n, v) => n + v, 0);
+  let short = 0;
+  let unused = 0;
+  for (const item of items) {
+    const use = cardUse(item, index);
+    if (use.remaining < 0) short++;
+    if (use.used === 0) unused++;
+  }
+  return {
+    kinds: items.length,
+    owned: items.reduce((n, c) => n + (c.owned ?? 0), 0),
+    proxyKinds: items.filter((c) => c.proxy).length,
+    perCube,
+    usedTotal: Object.values(perCube).reduce((n, v) => n + v, 0),
+    short, unused,
+  };
 }

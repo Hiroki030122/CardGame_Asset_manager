@@ -621,3 +621,11 @@ dialog ul { margin: 0 0 8px; padding-left: 1.2em; max-height: 40vh; overflow: au
   .fab-group { bottom: calc(var(--tabbar-h) + 16px + env(safe-area-inset-bottom)); }
   dialog.modal { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0; border-radius: 0; }
 }
+
+/* 集計 */
+.stat-table { border-collapse: collapse; font-size: 14px; }
+.stat-table th, .stat-table td { padding: 4px 10px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
+.stat-table thead th { background: var(--surface-2); }
+.stat-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.stat-table tr.total th, .stat-table tr.total td { border-top: 2px solid var(--border); font-weight: 600; }
+.stat-table td.heat { background: color-mix(in srgb, var(--accent) var(--heat, 0%), transparent); }

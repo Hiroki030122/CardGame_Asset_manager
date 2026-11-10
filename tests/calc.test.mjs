@@ -2,7 +2,7 @@
 import {
   cubeIndex, cardUse, usagePlaces, firstFreeNo, canDelete, choiceChanges, choiceUsage,
   cubeEntries, cubeAddCheck, civTotals, costHistogram, cubeSummary, cubeProblems, nextCubeId,
-  hyperUse, grUse, linkAddCheck, hyperRemoveCheck, cubeLinks, linksByHyper, linksByParent, linkSummary, linkPairs, hasSearchCondition,
+  hyperUse, grUse, linkAddCheck, hyperRemoveCheck, cubeLinks, linksByHyper, linksByParent, linkSummary, linkPairs, hasSearchCondition, statsEntries, statsSummary, stockSummary,
 } from "../js/calc.js";
 
 // キューブ 3 つ（X：1 枚だけ、Y：複数枚OK、Z：空）。No.1 は所持 2 で X に 1 枚・Y に 2 枚入っている
@@ -327,6 +327,50 @@ const tests = [
       { costMin: "0" }, { costMax: "3" }, { proxy: "real" }, { minus: true }]) {
       eq(hasSearchCondition({ ...blank(), ...patch }), true);
     }
+  }],
+  ["集計：メインデッキ全体は 1 種類を 1、キューブは入れた枚数ぶん", () => {
+    const d = mini();
+    d.settings.attributes = [];
+    d.settings.roles = [];
+    d.settings.kinds = [];
+    const all = statsSummary(d, "all");
+    eq([all.kinds, all.copies, all.single, all.multi, all.zero, all.cost2], [4, 4, 2, 1, 1, 1]);
+    const y = statsSummary(d, "Y");
+    eq([y.kinds, y.copies, y.single, y.zero], [2, 3, 2, 1]);
+    eq(statsEntries(d, "ZZ").length, 0);
+  }],
+  ["集計：コストの 3 区分は cost2 も 1 つと数え、コスト無しは数えない", () => {
+    const c = statsSummary(mini(), "all").cost;
+    eq([c.low, c.mid, c.high, c.total], [0, 3, 1, 4]);
+    eq(c.bins[10], 1);
+  }],
+  ["集計：区分・属性・役割（複数持ちは各項目、無いものは「なし」）とクロス集計の合計", () => {
+    const d = mini();
+    d.settings.attributes = ["SA", "ST"];
+    d.settings.roles = ["除去"];
+    d.settings.kinds = ["呪文", "クリーチャー"];
+    Object.assign(d.cards[0], { kind: "呪文", attrs: ["SA", "ST"], roles: ["除去"] });
+    Object.assign(d.cards[1], { kind: "不明", attrs: ["ST"], roles: [] });
+    const s = statsSummary(d, "all");
+    eq(s.byKind, [{ name: "呪文", value: 1 }, { name: "クリーチャー", value: 0 }]);
+    eq(s.noKind, 3);
+    eq(s.byAttr, [{ name: "SA", value: 1 }, { name: "ST", value: 2 }]);
+    eq(s.byRole, [{ name: "除去", value: 1 }]);
+    // 役割×属性：除去は No.1 だけ（SA・ST）。役割なしは No.2（ST）・No.3・No.4（属性なし）
+    eq(s.roleAttr.cells, [[1, 1, 0], [0, 1, 2]]);
+    eq(s.roleAttr.rowTotals, [1, 3]);
+    eq(s.roleAttr.colTotals, [1, 2, 2]);
+    eq(s.roleAttr.total, 4);
+    // 役割×文明：多色の No.2 は火・水・多色の各列に入る
+    eq(s.roleCiv.cols, ["火", "自然", "水", "光", "闇", "多色", "ゼロ文明"]);
+    eq(s.roleCiv.cells[1], [1, 0, 1, 0, 1, 1, 1]);
+  }],
+  ["集計：所持と使用（足りない・未使用・プロキシ・キューブごとの使用）", () => {
+    const d = mini();
+    d.cubes.Y.cards.push({ no: 4, memo: "", count: 2 });
+    const s = stockSummary(d, "cards");
+    eq([s.kinds, s.owned, s.proxyKinds, s.usedTotal, s.short, s.unused], [4, 4, 1, 6, 3, 1]);
+    eq(s.perCube, { X: 1, Y: 5, Z: 0 });
   }],
   ["選択肢：GR の区分と、超次元の属性・役割", () => {
     eq(choiceChanges(choiceData, "grKinds", "クリーチャー", null), [{ ledger: "gr", no: 1, field: "kind", value: "" }]);
