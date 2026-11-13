@@ -629,3 +629,12 @@ dialog ul { margin: 0 0 8px; padding-left: 1.2em; max-height: 40vh; overflow: au
 .stat-table .num { text-align: right; font-variant-numeric: tabular-nums; }
 .stat-table tr.total th, .stat-table tr.total td { border-top: 2px solid var(--border); font-weight: 600; }
 .stat-table td.heat { background: color-mix(in srgb, var(--accent) var(--heat, 0%), transparent); }
+
+/* ゲーム選択 */
+.back-link { font-size: 13px; white-space: nowrap; color: var(--muted); text-decoration: none; padding: 6px 4px; }
+.game-list { list-style: none; margin: 16px 0; padding: 0; display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.game-card { display: flex; flex-direction: column; gap: 4px; padding: 16px; min-height: 64px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; color: var(--text); text-decoration: none; }
+a.game-card:hover { border-color: var(--accent); }
+.game-card.soon { opacity: .55; }
+.game-name { font-weight: 700; font-size: 17px; }
+.game-note { font-size: 13px; color: var(--muted); }

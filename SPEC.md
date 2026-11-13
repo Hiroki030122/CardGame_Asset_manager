@@ -45,7 +45,8 @@ service cloud.firestore {
 
 ```
 /
-├─ index.html            … アプリ本体（1 ページ。画面は # のルーティングで切り替え）
+├─ index.html            … ゲーム選択ページ（Firebase を読まない軽いページ。ゲームを増やすときはここに 1 行足す）
+├─ duema/index.html      … デュエマのアプリ本体（1 ページ。画面は # のルーティングで切り替え。将来 mtg/ などを並べる）
 ├─ setup-check.html      … 動作確認ページ（今の index.html を移したもの）
 ├─ firebase-config.js    … 既存。触らない
 ├─ app-config.js         … ADMIN_UID、GAME_ID の既定値
@@ -369,5 +370,5 @@ calc.js・merge.js は段階ごとに `tests/` にテストを足して確かめ
 ## 9. 動作確認のしかた
 
 - ローカル：VS Code の拡張機能「Live Server」、または `npx serve .` で開く（`file://` では動かない）。`localhost` は Firebase の承認済みドメインに最初から入っているので、ローカルでも Google ログインできる。
-- **本物のデータを壊さないよう、確認は `?game=duema-test` を付けて行う**（例：`http://localhost:5500/?game=duema-test`）。別の場所（`games/duema-test`）に保存される。
+- **本物のデータを壊さないよう、確認は `?game=duema-test` を付けて行う**（例：`http://localhost:5500/duema/?game=duema-test`）。別の場所（`games/duema-test`）に保存される。
 - 公開後：PC とスマホの両方で開き、片方での操作がもう片方にすぐ反映されるか、ログインしていない端末で見えるか、編集ボタンが出ないかを確認する。

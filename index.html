@@ -3,28 +3,43 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>カード管理</title>
+<title>カード管理｜ゲーム選択</title>
 <link rel="stylesheet" href="css/style.css">
-<script type="module" src="js/main.js"></script>
 </head>
 <body>
 <header class="app-header">
   <div class="header-bar">
-    <div class="brand">
-      <span class="title">カード管理</span>
-      <span id="game-badge" class="badge warn" hidden></span>
-    </div>
-    <div class="header-right">
-      <span id="save-status" class="status" role="status" hidden></span>
-      <div id="auth" class="auth"></div>
-    </div>
+    <div class="brand"><span class="title">カード管理</span></div>
   </div>
-  <nav id="tabs" class="tabs" aria-label="画面の切り替え"></nav>
 </header>
-<main id="view">
-  <p class="muted">読み込み中…</p>
+<main>
+  <h1>ゲームを選んでください</h1>
+  <ul id="games" class="game-list"></ul>
   <noscript><p>JavaScript を有効にしてください。</p></noscript>
 </main>
-<div id="toasts" aria-live="polite"></div>
+<script>
+// ゲームが増えたら、ここに 1 行足す（フォルダ名＝href。まだ作っていないものは soon: true）
+var GAMES = [
+  { name: "デュエル・マスターズ", note: "メインデッキ・キューブ・超次元・GR の管理", href: "duema/" },
+  { name: "Magic: The Gathering", note: "準備中", soon: true },
+];
+var list = document.getElementById("games");
+GAMES.forEach(function (g) {
+  var li = document.createElement("li");
+  var card = document.createElement(g.soon ? "div" : "a");
+  card.className = "game-card" + (g.soon ? " soon" : "");
+  if (!g.soon) card.href = g.href;
+  else card.setAttribute("aria-disabled", "true");
+  var n = document.createElement("span");
+  n.className = "game-name";
+  n.textContent = g.name;
+  var d = document.createElement("span");
+  d.className = "game-note";
+  d.textContent = g.note;
+  card.append(n, d);
+  li.append(card);
+  list.append(li);
+});
+</script>
 </body>
 </html>

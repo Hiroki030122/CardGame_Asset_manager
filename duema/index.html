@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>カード管理</title>
+<link rel="stylesheet" href="../css/style.css">
+<script type="module" src="../js/main.js"></script>
+</head>
+<body>
+<header class="app-header">
+  <div class="header-bar">
+    <div class="brand">
+      <a class="back-link" href="../" aria-label="ゲーム選択へ戻る">← ゲーム選択</a>
+      <span class="title">デュエマ</span>
+      <span id="game-badge" class="badge warn" hidden></span>
+    </div>
+    <div class="header-right">
+      <span id="save-status" class="status" role="status" hidden></span>
+      <div id="auth" class="auth"></div>
+    </div>
+  </div>
+  <nav id="tabs" class="tabs" aria-label="画面の切り替え"></nav>
+</header>
+<main id="view">
+  <p class="muted">読み込み中…</p>
+  <noscript><p>JavaScript を有効にしてください。</p></noscript>
+</main>
+<div id="toasts" aria-live="polite"></div>
+</body>
+</html>

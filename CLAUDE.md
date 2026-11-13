@@ -23,4 +23,4 @@
 
 ## 動かし方
 - VS Code の Live Server、または `npx serve .` で開く。
-- **動作確認は必ず `?game=duema-test` を付けて行う**（本物のデータ `games/duema` を触らない）。
+- **動作確認は必ず `duema/?game=duema-test` のように `?game=duema-test` を付けて行う**（本物のデータ `games/duema` を触らない）。

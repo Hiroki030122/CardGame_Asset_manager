@@ -172,7 +172,7 @@ function content(ctx) {
 function emptyState({ admin }) {
   if (!admin) return section("まだデータがありません", h("p", null, "管理者がデータを登録すると、ここに表示されます。"));
   return section("まだデータがありません",
-    h("p", null, "初期設定（文明・属性・役割・区分の選択肢と、空のキューブA／B）を作るか、JSON を取り込んでください。"),
+    h("p", null, "文明・属性・役割・区分・キューブの設定を行うか、JSON を取り込んでください。"),
     h("div", { class: "buttons" },
       h("button", { onclick: onCreateInitial }, "初期設定を作成"),
       h("button", { class: "sub", onclick: importJson }, "JSON を取り込む")));
